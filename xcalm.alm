@@ -1,0 +1,962 @@
+
+iterate <_kind?*,_operator?*>, add,+, sub,-, mul,*, div,/
+  macro calminstruction?._kind? _target?*, _operand?*
+    compute _target, ((_target) _operator (_operand))
+  end macro
+end iterate
+
+iterate <_kind?*,_operator?*>, inc,+, dec,-
+  macro calminstruction?._kind? _target?*
+    compute _target, ((_target) _operator 1H)
+  end macro
+end iterate
+
+iterate _kind?*, and, or, xor, shl, shr
+  macro calminstruction?._kind? _target?*, _operand?*
+    compute _target, ((_target) _kind (_operand))
+  end macro
+end iterate
+
+iterate <_kind?*,_operator?*>, test,and, cmp,=
+  macro calminstruction?._kind? _target?*, _bitmask?*
+    check   (_target _operator _bitmask)
+  end macro
+end iterate
+
+iterate _kind?*, not, bsf, bsr
+  macro calminstruction?._kind? _target?*
+    compute _target, (_kind (_target))
+  end macro
+end iterate
+
+macro declare? _target?*
+  iterate _item?*, _target
+    define _item
+  end iterate
+end macro
+
+macro calminstruction?.str? _target?*
+  compute   _target, string(_target)
+end macro
+
+macro calminstruction?.concatenate? _target?*, _character?*
+  or        _target, (_character shl (lengthof(_target) shl 3H))
+  str       _target
+end macro
+
+macro calminstruction?._front? _target?*, _head?*&
+  match     _head _target, _target
+end macro
+
+macro calminstruction?._delcma? _target?*
+  _front    _target, =,
+end macro
+
+macro calminstruction?.nop? _operation?&
+end macro
+
+macro calminstruction?.setz? _target?*
+  compute   _target, 0H
+end macro
+
+macro calminstruction?.empty? _target?*
+  arrange   _target,
+end macro
+
+macro calminstruction?.cmpz? _target?*
+  cmp       _target, 0H
+end macro
+
+macro calminstruction?.varrfsh? _target?*
+  compute   _target, (+_target)
+end macro
+
+macro calminstruction?.symrfsh? _target?*
+  arrange   _target, _target
+end macro
+
+iterate <_kind?*,_action?*>, evaluate,varrfsh, expand,transform, copy,str
+  macro calminstruction?._kind? _result?*, _target?*
+    arrange   _result, _target
+    _action   _result
+  end macro
+end iterate
+
+macro calminstruction?.reprnum? _target?*
+  varrfsh   _target
+  symrfsh   _target
+end macro
+
+macro calminstruction?.numstr? _target?*
+  symrfsh   _target
+  stringify _target
+end macro
+
+macro calminstruction?.symnum? _target?*
+  stringify _target
+  varrfsh   _target
+end macro
+
+iterate _setting?,,calminstruction?.
+  calminstruction _setting#_init? _target?*, _value?&
+    local     _var, _const
+    setz      _var
+    match     =sym? _target, _target
+    jyes      _init_const
+    match     =var? _target, _target
+    jno       _init_const
+    not       _var
+   _init_const:
+    setz      _const
+    match     =const? _target, _target
+    jno       _init_continue
+    not       _const
+   _init_continue:
+    cmpz      _var
+    jyes      _init_readonly
+    varrfsh   _value
+   _init_readonly:
+    cmpz      _const
+    jyes      _init_publish
+    publish   _target:, _value
+    jump      _init_finish
+   _init_publish:
+    publish   _target, _value
+   _init_finish:
+  end calminstruction
+end iterate
+
+_constant? := 0H
+namespace _constant?
+  _init var const _colon?, ":"
+  _init var const _dot?, "."
+  _init var const _caret?, "^"
+  _init var const _hyphen?, "-"
+  _init var const _pipe?, "|"
+  _init var const _lparen?, "("
+  _init var const _rparen?, ")"
+  _init var const _lbrack?, "["
+  _init var const _rbrack?, "]"
+  _init var const _lbrace?, "{"
+  _init var const _rbrace?, "}"
+  _init var const _star?, "*"
+  _init var const _plus?, "+"
+  _init var const _question?, "?"
+  _init var const _comma?, ","
+  _init var const _dquote?, """"
+  _init var const _squote?, "'"
+  _init var const _nullstr?, ""
+  _init var const _false?, 0H
+  _init var const _zero?, _false ; alias
+  _init var const _true?, (not 0H)
+  _init var const _byte?, 100H
+  _init var const _word?, 10000H
+  _init var const _byte_mask?, (_byte - 1H)
+  _init var const _word_mask?, (_word - 1H)
+  _init const _empty?,
+end namespace
+
+_init sym const _cstpfx?, _
+match _prefix, _cstpfx
+  iterate _setting?,,calminstruction?.
+    macro _setting#_cstwrp? _target?*
+      _init const #_prefix#_target, _target
+    end macro
+  end iterate
+end match
+
+_context? := 0H
+namespace _context?
+  _count? = _constant?._zero?
+end namespace
+
+iterate _setting?,,calminstruction?.
+  calminstruction _setting#_unique? _result?*, _pattern?*
+    local       _proxy, _symbol
+    _cstwrp     _proxy
+    _init       const _prefix, _context?.
+    _init       _pattern, default
+    compute     _proxy, _context?._count?
+    arrange     _symbol, _pattern#_proxy
+    match       =label?, _pattern
+    jyes        _unique_publish
+    arrange     _symbol, _prefix#_symbol
+   _unique_publish:
+    publish     _result, _symbol
+    inc         _context?._count?
+  end calminstruction
+end iterate
+
+macro calminstruction?._asmcmd? _pattern?&
+  local       _command
+  arrange     _command, _pattern
+  assemble    _command
+end macro
+
+macro calminstruction?._iterate? _item?*, _stream?*, _baselabel?*
+  local     _item
+  arrange   _stream, _stream,
+ _baselabel#_loop:
+  match     _item =, _stream?, _stream
+  jno       _baselabel#_end
+end macro
+
+macro calminstruction?._end_iterate? _baselabel?*
+  jump      _baselabel#_loop
+ _baselabel#_end:
+end macro
+
+calminstruction calminstruction?._call? _target?*, _arguments?&
+  local         _translate, _operation
+  arrange       _operation, =call _target
+  empty         _translate
+  _iterate      _argument, _arguments, _call
+    match       =~ _argument, _argument
+    jyes        _call_next
+    match       =* _argument, _argument
+    jyes        _call_translate
+    _asmcmd     =_cstwrp _argument
+ _call_translate:
+    arrange     _argument, #_cstpfx#_argument
+ _call_next:
+    arrange     _translate, _translate,_argument
+  _end_iterate  _call
+  match         =,_translate, _translate
+  jno           _call_finish
+  arrange       _operation, _operation, _translate
+ _call_finish:
+  _asmcmd       _operation
+end calminstruction
+
+calminstruction calminstruction?.declabel? _targets?*&
+  _iterate      _target, _targets, declabel
+    _call       calminstruction?._unique?, ~ _target, label
+  _end_iterate  declabel  
+end calminstruction
+
+calminstruction calminstruction?.putlabel? _targets?*
+  _iterate      _target, _targets, putlabel
+    transform   _target
+    _asmcmd     _target:
+  _end_iterate  putlabel
+end calminstruction
+
+calminstruction calminstruction?.jmplabel? _target?*
+  local     _attribute
+  arrange   _attribute, =ump
+  match     =no _target, _target
+  jyes      _jumpbl_negate
+  match     =yes _target, _target
+  jno       _jumpbl_finish
+  arrange   _attribute, =yes
+  jump      _jumpbl_finish
+ _jumpbl_negate:
+  arrange   _attribute, =no
+ _jumpbl_finish:
+  transform _target
+  _asmcmd   =j#_attribute _target
+end calminstruction
+
+_listing? = _constant?._false?
+_liststr? = _constant?._nullstr?
+
+macro calminstruction?._asmcmd? _pattern?*&
+  local       _asmstr, _asmlb
+  cmp         _listing?, _constant?._false?
+  declabel    _asmlb
+  jmplabel    yes _asmlb
+  arrange     _asmstr, _pattern
+  stringify   _asmstr
+  concatenate _liststr?, _asmstr
+  concatenate _liststr?, 00AH
+  putlabel    _asmlb
+  _asmcmd     _pattern
+end macro
+
+; XXX
+;calminstruction calminstruction?._move? _target?*, _value?&
+;  match =~ _target, _target
+;  jyes  _move_nested
+;  call  _init, _target, _value
+;  jump  _move_finish
+; _move_nested:
+;  call  calminstruction?._init?, _target, _value
+; _move_finish:
+;end calminstruction
+
+;calminstruction calminstruction?.load? _size?*, _target?*, _from?*&
+;  local     _temporary
+;  _init     const __temporary, _temporary
+;  _init     const _load, load
+;  call      calminstruction?._unique?, __temporary, _load
+;  publish   _temporary, _target
+;  ;_asmcmd   . =_asmcmd ===load _temporary:_size ===from _from
+;  _asmcmd   =reprnum _target
+;end calminstruction
+
+calminstruction calminstruction?.assign? _target?*, _value?&
+  local     _holder
+  _call     calminstruction?._unique?, _holder, assign
+  match     =~ _target, _target
+  jno       _assign_expand
+  _asmcmd   =_call =_init?, _target, _value
+  jump      _assign_finish
+ _assign_expand:
+  _asmcmd   =arrange _holder, _target
+  _asmcmd   =publish _holder, _value
+ _assign_finish:
+end calminstruction
+
+calminstruction calminstruction?.loadstr? _size?*, _target?*, _from?*&
+  _asmcmd   =execute { =load _target:_size =from _from }
+end calminstruction
+
+calminstruction calminstruction?.loadvar? _size?*, _target?*, _from?*&
+  call      calminstruction?.loadstr?, _size, _target, _from
+  ;_asmcmd   =varrfsh _target
+end calminstruction
+
+calminstruction calminstruction?.loadsym? _size?*, _target?*, _from?*&
+  call      calminstruction?.loadvar?, _size, _target, _from
+  _asmcmd   =symrfsh _target
+end calminstruction
+
+macro calminstruction?._locals? _target?*&
+  _asmcmd   =local _target
+end macro
+
+calminstruction calminstruction?.duptop? _symbol?*
+  local     _holder, _temporary, _continue
+  _cstwrp   _temporary
+  _call     calminstruction?._unique?, _holder, duptop
+  _call     calminstruction?._unique?, _continue, label
+  _asmcmd   =take _symbol, _symbol
+  _asmcmd   =jno _continue
+  _asmcmd   =take __temporary, _symbol
+  _asmcmd   =arrange _holder, __temporary
+  _asmcmd   =take _symbol, _holder
+  _asmcmd   =take _symbol, __temporary
+  _asmcmd   _continue:
+end calminstruction
+
+calminstruction calminstruction?.push? _symbol?*, _value?&
+  _call     calminstruction?.duptop?, ~ _symbol
+  _asmcmd   =arrange _symbol, _value
+end calminstruction
+
+calminstruction calminstruction?.queue? _symbol?*, _value?&
+  local     _loop, _holder
+  _call     calminstruction?._unique?, _holder, queue
+  _call     calminstruction?._unique?, _loop, label
+  _asmcmd   _loop:
+  _asmcmd   =take _holder, _symbol 
+  _asmcmd   =jyes _loop
+  _call     calminstruction?.push?, ~ _symbol, ~ _value
+  _call     calminstruction?._unique?, * _loop, * label
+  _asmcmd   _loop:
+  _asmcmd   =take _symbol, _holder
+  _asmcmd   =jyes _loop
+end calminstruction
+
+calminstruction calminstruction?.pop? _symbols?*&
+  local         _current
+  _iterate      _current, _symbols, pop
+    _asmcmd     =take,_current
+  _end_iterate  pop
+end calminstruction
+
+calminstruction calminstruction?.getflg? _target?*
+  local     _boolean
+  compute   _boolean, _constant?._false?
+  jno       _getflg_finish
+  compute   _boolean, _constant?._true?
+ _getflg_finish:
+  publish   _target, _boolean
+end calminstruction
+
+declare _flags?
+
+calminstruction calminstruction?.pshflg?
+  push      _flags,
+  _call     calminstruction?._unique?, _flags, pshflg
+  assign    _flags, _constant?._empty?
+  _asmcmd   =_call =calminstruction?.=getflg?, _flags
+end calminstruction
+
+calminstruction calminstruction?.popflg?
+  _asmcmd   =cmp _flags, =_constant?.=_true?
+  pop       _flags
+end calminstruction
+
+calminstruction calminstruction?._balance? _target?*, _metachar?*
+  match     {}, _metachar
+  jyes      _balance_brace
+  match     (), _metachar
+  jyes      _balance_paren
+  match     [], _metachar
+  jyes      _balance_brack
+  _asmcmd   =_asmcmd ===err "Bad balancing meta character."
+  jump      _balance_finish
+ _balance_brace:
+  _asmcmd   =match {_target}, _target
+  jump      _balance_finish
+ _balance_paren:
+  _asmcmd   =match (_target), _target
+  jump      _balance_finish
+ _balance_brack:
+  _asmcmd   =match [_target], _target
+ _balance_finish:
+end calminstruction
+
+purge calminstruction?._iterate?, calminstruction?._end_iterate?
+
+declare _nested?
+
+calminstruction calminstruction?._continue?
+  _asmcmd   =jump _nested
+end calminstruction
+
+calminstruction calminstruction?._break?
+  _asmcmd   =_call =calminstruction?.=getflg?, * _flags
+  _asmcmd   =jump _nested#=end
+end calminstruction
+
+iterate <_kind?*,_goto?>, next,_nested, exit,
+  iterate <_action?*,_invert?*>, yes,no, no,yes
+    match =next?, _kind
+      calminstruction calminstruction?._j#_action#_kind?
+        _asmcmd   =j#=_action _goto
+      end calminstruction
+    else match =exit?, _kind
+      calminstruction calminstruction?._j#_action#_kind?
+        _call     calminstruction?._unique?, _continue, label
+        _asmcmd   =j#=_invert _continue
+        _asmcmd   =_break
+        _asmcmd   _continue:
+      end calminstruction
+    end match
+  end iterate
+end iterate
+
+macro calminstruction?._nestinc?
+  local     _stack
+  _call     calminstruction?._unique?, _stack, label
+  take      _nested, _stack
+end macro
+
+macro calminstruction?._nestfst?
+  _call     calminstruction?.pshflg?
+  _asmcmd   _nested:
+  _asmcmd   =_call =calminstruction?.=getflg?, * _flags
+end macro
+
+macro calminstruction?._fence? _pattern?*
+  local       _fence
+  _call       calminstruction?._unique?, _fence, _pattern
+  _asmcmd     =compute _fence, =_constant?.=_true?
+  _nestfst
+  _asmcmd     =cmp _fence, =_constant?.=_true?
+  _asmcmd     =compute _fence, =_constant?.=_false?
+end macro
+
+calminstruction calminstruction?._end? _remain?*
+  match     =_repeat?, _remain
+  jyes      _end_continue
+  match     =_iterate?, _remain
+  jyes      _end_continue
+  match     =_unroll?, _remain
+  jyes      _end_continue
+  match     =_let?, _remain
+  jyes      _end_continue
+  match     =_foreach?, _remain
+  jyes      _end_continue
+  _asmcmd   =_asmcmd ===err "iterate: bad end directive"
+  jump      _end_finish
+ _end_continue:
+  _asmcmd   =jump _nested
+  _asmcmd   _nested#=end:
+  call      calminstruction?.popflg?
+  take      ,_nested
+ _end_finish:
+end calminstruction
+
+calminstruction calminstruction?._unroll? _target?*, _destination?
+  _nestinc
+  _fence      unroll
+  _call       calminstruction?._unique?, * _stack, * label
+  _asmcmd     =jyes _stack
+  _asmcmd     =take _destination, _target
+  _asmcmd     _stack:
+  _asmcmd     =take _target, _target
+  _asmcmd     =jno _nested#=end
+end calminstruction
+
+calminstruction calminstruction?._iterate? _access?*, _stream?*, _separator:<,>
+  local       _temporary, _default, _iterator, _container, _current, _separators, _bookmark
+  _init       sym _temporary, _constant?._empty?
+  _cstwrp     _temporary
+  _nestinc
+  _call       calminstruction?._unique?, _container, iterate
+  arrange     _separators,
+  arrange     _iterator,
+  arrange     _default, _stream _separator
+  _call       calminstruction?.push?, ~ _container, ~ _default
+  arrange     _access, _access,
+ _iterate_separate:
+  match       _current _separator?, _separator
+  jno         _iterate_build
+  arrange     _separators, _separators==_current
+  jump        _iterate_separate
+ _iterate_build:
+  match       _current=,_access?, _access
+  jno         _iterate_generate
+  match       _current=*, _current
+  pshflg
+  _locals     _current
+  _call       calminstruction?.duptop?, ~ _current
+  push        _bookmark, _current
+  popflg
+  jyes        _iterate_star
+  arrange     _current, _current?
+ _iterate_star:
+  arrange     _iterator, _iterator==,_current
+  jump        _iterate_build
+ _iterate_generate: 
+  _front      _iterator, ===,
+  _nestfst
+  _asmcmd     =match _iterator _separators __temporary?, _container
+  _asmcmd     =arrange _container, __temporary
+  _call       calminstruction?._unique?, * _stack, * label
+  _asmcmd     =jyes _stack  
+  _call       calminstruction?.pop?, ~ _container
+  _unroll     _bookmark
+    _call     calminstruction?.pop?, ~ _bookmark
+  _end        _unroll
+  _asmcmd     =jump _nested#=end
+  _asmcmd     _stack:
+end calminstruction
+
+calminstruction calminstruction?._let? _binding?*&
+  _nestinc
+  _iterate    _symbol*, _binding
+    _locals   _symbol
+    _call     calminstruction?.push?, ~ _symbol
+  _end        _iterate
+  _fence      let
+  _call       calminstruction?._unique?, * _stack, * label
+  _asmcmd     =jyes _stack
+  _iterate    _symbol*, _binding
+    _call     calminstruction?.pop?, ~ _symbol
+  _end        _iterate
+  _asmcmd     =jump _nested#=end
+  _asmcmd     _stack:
+end calminstruction
+
+calminstruction calminstruction?._repeat? _howmany?*, _counters?&
+  local       _reverse, _counter, _start, _random
+  _nestinc
+  _call       calminstruction?._unique?, * _stack, * label
+  symrfsh     _howmany
+  _asmcmd     =check (_howmany >== =_constant?.=_zero?)
+  _asmcmd     =jyes _stack
+  _asmcmd     =_asmcmd ===err "Counter of repeat must be >= to zero"
+  _asmcmd     _stack:
+  _call       calminstruction?._unique?, _random, repeat
+  _call       calminstruction?.duptop?, ~ _random
+  _asmcmd     =setz _random
+ _repeat_initialize:
+  take        ,_stack
+  _iterate    _counter*, _counters
+    compute   _start, 1H
+    match     _counter:_start, _counter
+    _locals   _counter
+    _call     calminstruction?.duptop?, ~ _counter
+    _asmcmd   =compute _counter, ((_start) - 1H)
+    push      _stack, _counter
+  _end        _iterate
+  _nestfst
+  _unroll     _stack, _reverse
+    _asmcmd   =inc _stack
+  _end        _unroll
+  _asmcmd     =check (_random < _howmany)
+  _asmcmd     =inc _random
+  _call       calminstruction?._unique?, * _stack, * label
+  _asmcmd     =jyes _stack
+  _call       calminstruction?.pop?, ~ _random
+  _unroll     _reverse
+    _call     calminstruction?.pop?, ~ _reverse
+  _end        _unroll
+ _repeat_finish:
+  _asmcmd     =jump _nested#=end
+  _asmcmd     _stack:
+end calminstruction
+
+calminstruction calminstruction?.execute? _instruction?&
+  local     _label_loop, _label_end, _holder, _stream
+  _balance  _instruction, {}
+  jno       _execute_finish
+  _call     calminstruction?._unique?, _holder, execute
+  publish   _holder, _instruction
+  _locals   =_execute_stream, =_execute_head, =_execute_expand, =_execute_tail
+  _asmcmd   =take =_execute_stream, _holder
+  _asmcmd   =arrange _holder, =_execute_stream
+  _call     calminstruction?._unique?, _label_loop, label
+  _asmcmd   _label_loop:
+  arrange   _stream,    =_execute_head?=== <[=_execute_expand]>=== =_execute_tail?,\
+                        =_execute_head =_execute_expand =_execute_tail,\
+                        =_execute_head?=== <[=_execute_expand]>=_execute_tail?,\
+                        =_execute_head =_execute_expand=_execute_tail,\
+                        =_execute_head?<[=_execute_expand]>=== =_execute_tail?,\
+                        =_execute_head=_execute_expand =_execute_tail,\
+                        =_execute_head?<[=_execute_expand]>=_execute_tail?,\
+                        =_execute_head=_execute_expand=_execute_tail
+  _iterate  <_pattern,_substitute>, _stream
+    _call   calminstruction?._unique?, _label_end, * label
+    _asmcmd =match _pattern, =_execute_stream
+    _asmcmd =jno _label_end
+    _asmcmd =transform =_execute_expand
+    _asmcmd =arrange =_execute_stream, _substitute
+    _asmcmd =jump _label_loop
+    _asmcmd _label_end:
+  _end      _iterate
+  _asmcmd   =_iterate =_execute_atom, =_execute_stream, ||
+  _asmcmd   =assemble =_execute_atom
+  _asmcmd   =_end =_iterate
+ _execute_finish:
+end calminstruction
+
+calminstruction calminstruction?._foreach? _container?*, _functors?*, _element?*, _first?, _last?
+  local       _holder_copy, _holder_size, _holder_insert, _holder_element, _position, _copy, _size,\
+                _declare, _duplicate, _getter, _insert, _length, _reverse
+  _nestinc
+  setz        _reverse
+  match       =reverse? _container, _container
+  jno         _foreach_extract
+  not         _reverse
+ _foreach_extract:
+  match       _declare=,_duplicate=,_getter=,_insert=,_length, _functors
+  _call       calminstruction?._unique?, _holder_insert, foreach
+  _call       calminstruction?._unique?, _holder_element, * foreach
+  _call       calminstruction?._unique?, _position, * foreach
+  _call       calminstruction?._unique?, _copy, * foreach
+  _call       calminstruction?._unique?, _holder_copy, * foreach
+  _call       calminstruction?._unique?, _size, * foreach
+  _call       calminstruction?._unique?, _holder_size, * foreach
+  publish     _size, _constant?._zero?
+  _asmcmd     =_init =const _holder_insert, {_element}
+  _asmcmd     =_init =const _holder_element, _element
+  _asmcmd     =_init =const _holder_size, _size
+  _asmcmd     =_init =const _holder_copy, _copy
+  _asmcmd     =_call _length, ~ _holder_size, ~ _container
+  _asmcmd     =_call _declare, ~ _holder_copy
+  _asmcmd     =empty _position
+  cmpz        _reverse
+  jyes        _foreach_reset
+  _asmcmd     =compute _position, (_size - 1H)
+  jump        _foreach_start
+ _foreach_reset:
+  _asmcmd     =setz _position
+ _foreach_start:
+  match       ,_first
+  jyes        _foreach_empty_1
+  _asmcmd     =setz _first
+  _asmcmd     =not _first
+ _foreach_empty_1:
+  match       ,_last
+  jyes        _foreach_empty_2
+  _asmcmd     =setz _last
+ _foreach_empty_2:
+  _fence      * foreach
+  _call       calminstruction?._unique?, * _stack, * label
+  _asmcmd     =jno _stack
+  _asmcmd     =cmpz _size
+  _asmcmd     =_jyesexit
+  _asmcmd     _stack:
+  cmpz        _reverse
+  jyes        _foreach_zero
+  _asmcmd     =cmp _position, (_size - 1H)
+  jump        _foreach_insert
+ _foreach_zero:
+  _asmcmd     =cmpz _position
+ _foreach_insert:
+  _call       calminstruction?._unique?, * _stack, * label
+  _asmcmd     =jyes _stack
+  match       ,_first
+  jyes        _foreach_empty_3
+  _asmcmd     =setz _first
+ _foreach_empty_3:
+  _asmcmd     =take _element,_element
+  _asmcmd     =jno _stack
+  _asmcmd     =_call _insert, ~ _holder_copy, ~ _holder_insert
+  _asmcmd     _stack:
+  cmpz        _reverse
+  jyes        _foreach_less
+  _asmcmd     =check (_position < 0H)
+  jump        _foreach_duplicate
+ _foreach_less:
+  _asmcmd     =cmp _position, _size
+ _foreach_duplicate:
+  _call       calminstruction?._unique?, * _stack, * label
+  _asmcmd     =jno _stack
+  _asmcmd     =_call _duplicate, ~ _container, ~ _holder_copy
+  _asmcmd     =jump _nested#=end
+  _asmcmd     _stack:
+  match       ,_last
+  jyes        _foreach_empty_4
+  _asmcmd     =setz _last
+  cmpz        _reverse
+  jyes        _foreach_before
+  _asmcmd     =cmpz _position
+  jump        _foreach_last
+ _foreach_before:
+  _asmcmd     =cmp _position, (_size - 1H)
+ _foreach_last:
+  _call       calminstruction?._unique?, * _stack, * label
+  _asmcmd     =jno _stack
+  _asmcmd     =not _last
+  _asmcmd     _stack:
+ _foreach_empty_4:
+  _asmcmd     =_call _getter, ~ _holder_element, ~ _container, ~ _position
+  cmpz        _reverse
+  jyes        _foreach_increment
+  _asmcmd     =dec _position
+  jump        _foreach_finish
+ _foreach_increment:
+  _asmcmd     =inc _position
+ _foreach_finish:
+end calminstruction
+
+macro calminstruction?._transformable? _target?*
+  local     _defined
+  _let      _defined
+    expand  _defined, _target
+    pshflg
+  _end      _let
+  popflg
+end macro
+
+iterate <_kind?*,_action?*>, movvar,evaluate, movsym,expand, movstr,copy
+  macro calminstruction?._kind? _result?*, _target?*
+    _let          _placeholder
+      _action     _placeholder, _target
+      assign      _result, _placeholder
+    _end          _let
+  end macro
+end iterate
+
+macro calminstruction?.move? _result?*, _target?*
+  _let          _expand, _label
+    expand      _expand, _target
+    declabel    _label
+    jmplabel    yes _label
+    movvar      _result, _target
+    _break
+    putlabel    _label
+    movsym      _result, _target
+  _end          _let
+end macro
+
+macro calminstruction?.length? _result?*, _item?*, _list?&
+  setz      _result
+  _iterate  _item*, _list
+    inc     _result
+  _end      _iterate
+end macro
+
+macro _generate_foreach? _kind?*, _declare?*, _duplicate?*, _element?*, _insert?*, _length?*
+  calminstruction calminstruction?._#_kind#_foreach? _container?*, _remain?*&
+    local       _first, _last
+    _init       const _list, _declare,_duplicate,_element,_insert,_length
+    arrange     _first,
+    arrange     _last,
+    match       _remain=,_first?, _remain
+    match       _first?=,_last?, _first
+    _call       calminstruction?._foreach?, ~ _container, ~ _list, ~ _remain, ~ _first, ~ _last
+  end calminstruction
+end macro
+
+iterate _setting?,,calminstruction?.
+  calminstruction _setting#_cvthex? _result?*, _digit?*
+    varrfsh   _digit
+    check     (_digit < 00AH)
+    jno       _cvthex_hexadecimal
+    add       _digit, 030H
+    jump      _cvthex_publish
+   _cvthex_hexadecimal:
+    check     (_digit > 00FH)
+    jyes      _cvthex_finish
+    add       _digit, (041H - 00AH)
+   _cvthex_publish:
+    publish   _result, _digit
+   _cvthex_finish:
+  end calminstruction
+end iterate
+
+macro calminstruction?.append? _list?*, _item?&
+  arrange   _list, _list,_item
+  match     =,_list, _list
+end macro
+
+calminstruction calminstruction?.restore? _list?*&
+  local     _holder
+  _call     calminstruction?._unique, _holder, restore
+  _iterate  _item, _list
+    match   =~ _item, _item
+    jyes    _restore_immediate
+    ;_asmcmd =arrange _holder, _item
+    ;_asmcmd =execute { =restore <[=_holder]> }
+    _continue
+   _restore_immediate:
+    _asmcmd =execute { =restore _item }
+  _end      _iterate
+end calminstruction
+
+macro calminstruction?._virtual? _label?, _at?:0H
+  _let        _exit, _transparent
+    arrange   _transparent,
+    _asmcmd   =virtual =at _at
+    match     _label,_transparent
+    declabel  _exit
+    jmplabel  yes _exit
+    _asmcmd   _label::
+    putlabel  _exit
+  _end        _let
+end macro
+
+macro _btcnt_table?
+  local _, _number, _magnitude
+  virtual at 0H
+  _btcnt::
+    repeat _constant?._byte? _:0H
+      _number = _
+      _magnitude = 0H
+      while (_number <> 0H)
+        if (_number and 1H)
+          _magnitude = (_magnitude + 1H)
+        end if
+        _number = (_number shr 1H)
+      end while
+      db _magnitude
+    end repeat
+  end virtual
+end macro
+
+_btcnt_table
+
+calminstruction _popcnt? _result?*, _expression?*
+  local     _counter, _bitmask
+  _cstwrp   _bitmask
+  setz      _counter
+  check     (_expression < 0H)
+  jno       _popcnt_loop
+  _asmcmd   =err "popcnt: expression can't be negative"
+  exit
+ _popcnt_loop:
+  cmpz      _expression
+  jyes      _popcnt_publish
+  compute   _expression, (_expression shr (bsf _expression))
+  compute   _bitmask, (_expression and (_constant?._byte? - 1H))
+  _asmcmd   =load __bitmask:=byte =from =_btcnt:__bitmask
+  add       _counter, _bitmask
+  shr       _expression, 8H
+  jump      _popcnt_loop
+ _popcnt_publish:
+  publish   _result, _counter
+end calminstruction
+
+calminstruction _sanitize_digit? _result?*, _digit?*, _base?*
+  local       _value, _limit, _overflow
+  _cstwrp     _base
+  _asmcmd     =assert ((__base > 1H) & (__base <== 010H))
+  setz        _overflow
+  setz        _value
+  not         _value
+  check       (_digit < 030H)
+  jyes        _sanitize_digit_publish
+  compute     _limit, _base
+  check       (_limit > 00AH)
+  jno         _sanitize_digit_continue
+  compute     _limit, 00AH
+ _sanitize_digit_continue:
+  check       (_digit < (030H + _limit))
+  jyes        _sanitize_digit_compute
+  check       (_base >= 00AH)
+  jno         _sanitize_digit_publish
+  and         _digit, (not 020H)
+  check       (_digit < 'A')
+  jyes        _sanitize_digit_publish
+  compute     _limit, (_base - 00AH)
+  check       (_digit >= ('A' + _limit))
+  jyes        _sanitize_digit_publish
+  not         _overflow
+ _sanitize_digit_compute:
+  compute     _value, (_digit - 030H)
+  check       (_base <= 00AH)
+  jyes        _sanitize_digit_publish
+  cmpz        _overflow
+  jyes        _sanitize_digit_publish
+  sub         _value, 7H
+ _sanitize_digit_publish:
+  publish     _result, _value
+end calminstruction
+
+calminstruction _unsigned_atoi? _result?*, _stream?*, _base?:00AH, _field?
+  local       _return, _value, _current, _input, _decrement
+  _cstwrp     _decrement
+  match       ,_field
+  setz        _decrement
+  not         _decrement
+  jyes        _unsigned_atoi_process
+  compute     _decrement, _field
+  _asmcmd     =assert (__decrement > 0H)
+ _unsigned_atoi_process:
+  compute     _input, _stream
+  compute     _current, (_input and _constant?._byte_mask?)
+  _call       _sanitize_digit, _value, ~ _current, ~ _base
+  check       (_value < 0H)
+  jyes        _unsigned_atoi_publish
+  jump        _unsigned_atoi_shift
+ _unsigned_atoi_loop:
+  check       (string(_input) = _constant?._nullstr?)
+  jyes        _unsigned_atoi_adjust
+  compute     _current, (_input and _constant?._byte_mask?)
+  _call       _sanitize_digit, _return, ~ _current, ~ _base
+  check       (_return < 0H)
+  jyes        _unsigned_atoi_adjust
+  mul         _value, _base
+  add         _value, _return
+ _unsigned_atoi_shift:
+  shr         _input, 8H
+  check       (_decrement < 0H)
+  jyes        _unsigned_atoi_loop
+  dec         _decrement
+  cmpz        _decrement
+  jno         _unsigned_atoi_loop
+ _unsigned_atoi_adjust:
+  str         _input
+  publish     _stream, _input
+ _unsigned_atoi_publish:
+  publish     _result, _value
+end calminstruction
+
+macro calminstruction?._is_alpha? _symbol?*
+  check       (((_symbol >= 041H) & (_symbol <= 05AH)) |\
+                ((_symbol >= 061H) & (_symbol <= 07AH)))
+end macro
+
+calminstruction _comment? _begin?*
+  local     _end, _line
+  _cstwrp   _line
+  _init     const _purge, { purge ? }
+  stringify _begin
+  compute   _end, (_begin bswap (lengthof(_begin)))
+  _asmcmd   =calminstruction ?! =_?&
+  _asmcmd   =arrange __line, =_
+  execute   { stringify _line }
+  execute   { cmp _line, _end }
+  execute   { jno _comment_finish }
+  call      calminstruction?.execute?, _purge
+  execute   { _comment_finish: }
+  _asmcmd   =end =calminstruction
+end calminstruction
+

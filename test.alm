@@ -1,0 +1,14 @@
+
+include "xcalm.alm"
+
+calminstruction _abc?
+    local _bitmask
+    _init const __bitmask, _bitmask
+_loop:
+    compute _bitmask, 0H
+    ;loadvar byte, _bitmask, _btcnt:_bitmask
+    execute { nop }
+    jump _loop
+end calminstruction
+
+_abc
