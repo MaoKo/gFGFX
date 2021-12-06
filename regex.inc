@@ -17,9 +17,9 @@
 ;                   |   '.'                                 {}
 ; <regex_char>      ->  REGCHAR                             { _regex_char._result := _automata_create({0},REGCHAR,{1}); }
 
-;struc _regex_meta _tkname?*, _skippable?*
-;   .tkname?:       db _tkname
-;   .skippable?:    db _skippable
+;struc _regex_meta _tokenname?*, _skippable?*
+;   .tokenname?:  db _tokenname
+;   .skippable?:  db _skippable
 ;end struc
 
 ;struc _regex? _automata_start?*, _automata_stcnt?*,\
@@ -28,29 +28,31 @@
 ;           _automata_transition_elems?*, _automata_transition_count?*
 ;   .machine? _automata? _automata_start, _automata_stcnt, _automata_states_elems, _automata_states_count,\
 ;       _automata_accept_elems, _automata_accept_count, _automata_transition_elems, _automata_transition_count
-;   .tkname?: db _tkname
+;   .tokenname?: db _tokenname
 ;end struc
 
 _regex? := 0H
 namespace _regex?
-  calminstruction _regex_meta? _result?*, _tkname?*, _skippable?*
+  calminstruction _regex_meta? _result?*, _tokenname?*, _skippable?*
     varrfsh     _skippable
-    assign      _result.=tkname?, _tkname
+    assign      _result.=tokenname?, _tokenname
     assign      _result.=skippable?, _skippable
   end calminstruction
 
   calminstruction _regex_meta_duplicate? _result?*, _target?*
-    local       _holder
-    arrange     _holder, _target.=tkname?
-    assign      _result.=tkname?, _holder
-    arrange     _holder, _target.=skippable?
-    assign      _result.=skippable?, _holder
+    movstr      _result.=tokenname?, _target.=tokenname?
+    movvar      _result.=skippable?, _target.=skippable?
   end calminstruction
+
+  macro calminstruction?._meta? _result?*
+    assign      _result.=meta?, _constant?._zero?
+  end macro
 
   calminstruction _declare? _result?*, _skippable?*, _alias?
     local       _holder, _name
     arrange     _holder, _result.=machine?
     _call       _automata?._declare?, ~ _holder
+    _meta       _result
     match       ,_alias
     jno         _declare_finish
     arrange     _name, _result
@@ -65,9 +67,14 @@ namespace _regex?
     arrange     _holder_1, _result.=machine?
     arrange     _holder_2, _regex.=machine?
     _call       _automata?._duplicate?, ~ _holder_1, ~ _holder_2
+    _meta       _result
     arrange     _holder_1, _result.=meta?
     arrange     _holder_2, _regex.=meta?
     _call       _regex_meta_duplicate, ~ _holder_1, ~ _holder_2
+  end calminstruction
+
+  calminstruction _destroy? _result?*
+    _asmcmd =TODO
   end calminstruction
 
   calminstruction _match? _result?*, _regex?*, _string?*
@@ -111,7 +118,6 @@ namespace _regex?
   match _1 _2, _brace_alias _brace_sequence
     calminstruction _regex_brace? _result?*, _stream?*, _kind?*
       local       _return, _alias, _input, _current, _min, _max
-      _init       var const _base, 00AH
       _call       _advance_stream, ~ _stream, ~ _constant?._lbrace?, ~ _constant?._empty?
       match       =_1?, _kind
       jyes        _regex_brace_alias
@@ -147,7 +153,7 @@ namespace _regex?
       publish     _stream, _input
       jump        _regex_brace_finish
      _regex_brace_sequence:
-      _call       _unsigned_atoi, _min, ~ _stream, ~ _base, ~ _constant?._empty?
+      _call       _unsigned_atoi, _min, ~ _stream, ~ _constant?._base_decimal?, ~ _constant?._empty?
       check       (_min < 0H)
       jno         _regex_brace_sequence_follow
       _asmcmd     =err "regex: missing digit after the '{'"
@@ -179,10 +185,8 @@ namespace _regex?
 
   calminstruction _regex_char? _result?*, _stream?*
     local       _current, _escape
-    _init       var const _octal, 8H
-    _init       sym const _octsz, 3H
-    _init       var const _hexadecimal, 010H
-    _init       sym const _hexadecsize, 2H
+    _init       sym const _octal_size, 3H
+    _init       sym const _hexadecimal_size, 2H
     _asmcmd     =assert (_stream <> =_constant?.=_nullstr?)
     compute     _current, (_stream and _constant?._byte_mask?)
     _call       _advance_stream, ~ _stream, ~ _current, ~ _constant?._empty?
@@ -219,13 +223,13 @@ namespace _regex?
     cmp         (_escape or 020H), 'x'
     jno         _regex_char_octal
     _call       _advance_stream, ~ _stream, ~ _escape, ~ _constant?._empty?
-    _call       _unsigned_atoi, _current, ~ _stream, ~ _hexadecimal, ~ _hexadecsize
+    _call       _unsigned_atoi, _current, ~ _stream, ~ _constant?._base_hexadecimal?, ~ _hexadecimal_size
     check       (_current >= 0H)
     jyes        _regex_char_publish
     _asmcmd     =err "regex: hexadecimal constant must follow '\x' or '\X'"
     jump        _regex_char_finish
    _regex_char_octal:
-    _call       _unsigned_atoi, * _current, ~ _stream, ~ _octal, ~ _octsz
+    _call       _unsigned_atoi, * _current, ~ _stream, ~ _constant?._base_octal?, ~ _octal_size
     check       ((_current >= 0H) & (_current <= _constant?._byte_mask?))
     jyes        _regex_char_publish
     check       (_current > _constant?._byte_mask?)
@@ -550,7 +554,6 @@ namespace _regex?
     _init       var const _dotall, "s"
     _init       var const _skipws, "x"
     _init       var const _invert, "-"
-    _init       var const _colon, ":"
     take        _destination, _result
     push        _insensitive, _constant?._false?
    _regex_option_loop:
@@ -573,10 +576,10 @@ namespace _regex?
     jno         _regex_option_continue
     _call       _advance_stream, ~ _stream, ~ _invert, ~ _constant?._empty?
    _regex_option_loop_invert:
-    compute     _current, (_stream and 0FFH)
+    compute     _current, (_stream and _constant?._byte_mask?)
     check       ((_current = _igcase) | (_current = _dotall) | (_current = _skipws))
     jno         _regex_option_continue
-    call        _advance_stream, _stream, _current
+    _call       _advance_stream, ~ _stream, ~ _current, ~ _constant?._empty?
     cmp         _current, _igcase
     arrange     _target, __insensitive
     jyes        _regex_option_update_invert
@@ -588,7 +591,7 @@ namespace _regex?
     publish     _target, _constant?._false?
     jump        _regex_option_loop_invert
    _regex_option_continue:
-    call        _advance_stream, _stream, _colon, _empty
+    _call       _advance_stream, ~ _stream, ~ _constant?._colon?, ~ _constant?._empty?
     call        _regex_union?, _destination, _insensitive, _stream
    _regex_option_finish:
     pop         _destination, _insensitive
@@ -671,7 +674,6 @@ namespace _regex?
 
   calminstruction _regex_closure?: _result?*, _insensitive?*, _stream?*
     local       _return, _current, _input, _destination, _igcase
-    _init       var const _base, 00AH
     take        _destination, _result
     take        _igcase, _insensitive
     _call       _regex_atom, ~ _destination, ~ _igcase, ~ _stream
@@ -700,7 +702,7 @@ namespace _regex?
     jump        _regex_closure_loop
    _regex_closure_sequence:
     compute     _current, ((_input shr 8H) and _constant?._byte_mask?)
-    _call       _sanitize_digit, _return, ~ _current, ~ _base
+    _call       _sanitize_digit, _return, ~ _current, ~ _constant?._base_decimal?
     check       (_return < 0H)
     jyes        _regex_closure_finish
     _call       _regex_brace, ~ _destination, ~ _stream, ~ _regex?._brace_sequence?
@@ -769,11 +771,9 @@ namespace _regex?
   end calminstruction
 
   calminstruction _connect? _result?*, _regexs?*&
-    local           _return, _holder, _reverse, _list, _item, _bookmark, _regex
-    _init           const __return, _return
-    _init           var const _position, 0H
-    arrange         _reverse,
-    arrange         _list,
+    local           _return, _holder, _reverse, _list, _last, _item, _bookmark, _regex
+    empty           _reverse
+    empty           _list
     _iterate        _regex, _regexs
       arrange       _list, _list,_regex.=machine?
       arrange       _reverse, _regex,_reverse
@@ -782,16 +782,18 @@ namespace _regex?
     arrange         _holder, _result.=machine?
     _call           _automata?._connect?, ~ _holder, ~ _list
     arrange         _holder, _result.=machine?.=accept?
-    _bitset_foreach reverse _holder, _item
+    _bitset_foreach reverse _holder, _item,,_last
+      cmpz          _last
+      _jnoexit
       match         _regex=,_reverse?, _reverse
       arrange       _bookmark, _result.=table?._item?
       arrange       _regex, _regex.=meta?
-      call          _regex_meta_duplicate, _bookmark, _regex
+      _call         _regex_meta_duplicate, ~ _bookmark, ~ _regex
     _end            _foreach
-    call            _bitset?._element?, __return, _holder, _position
+    _call           _bitset?._element?, _return, ~ _holder, ~ _constant?._zero?
     arrange         _bookmark, _result.=table?._return?
     arrange         _result, _result.=meta?
-    call            _regex_meta_duplicate, _bookmark, _result
+    _call           _regex_meta_duplicate, ~ _bookmark, ~ _result
   end calminstruction
 
   calminstruction _alias? _result?*, _expression?*
@@ -816,7 +818,7 @@ namespace _regex?
     arrange         _holder, _regex.=machine?.=accept?
     setz            _enum
     _bitset_foreach _holder, _item
-      _asmcmd       =db 00AH, ".", _regex.=table?._item?.=tkname?, " = "
+      _asmcmd       =db 00AH, ".", _regex.=table?._item?.=tokenname?, " = "
       compute       _destination, _enum
       numstr        _destination
       inc           _enum
@@ -847,16 +849,17 @@ namespace _regex?
     _end            _repeat
     _asmcmd         =db 00AH
     _bitset_foreach _holder, _item
-      arrange       _size, _regex.=table?._item?.=tkname?
+      arrange       _size, _regex.=table?._item?.=tokenname?
       compute       _size, lengthof(_size)
       numstr        _size
-      _asmcmd       =db 00AH, "._string.", _regex.=table?._item?.=tkname?, ":", " db ", __size, ", """, _regex.=table?._item?.=tkname?, """"
+      _asmcmd       =db 00AH, "._string.", _regex.=table?._item?.=tokenname?,\
+                      ":", " db ", __size, ", """, _regex.=table?._item?.=tokenname?, """"
     _end            _foreach
     _asmcmd         =db 00AH, "._string.ERROR: db 5, ""ERROR"""
     _asmcmd         =db 00AH, "._string.EOF: db 3, ""EOF"""
     _asmcmd         =db 00AH, "._string_table: ; [DEBUG]", 00AH, "dd "
     _bitset_foreach _holder, _item,, _last
-      _asmcmd       =db "._string.", _regex.=table?._item?.=tkname?, ", "
+      _asmcmd       =db "._string.", _regex.=table?._item?.=tokenname?, ", "
     _end            _foreach
     _asmcmd         =db "._string.ERROR, ._string.EOF"
     _asmcmd         =db 00AH, 00AH, "._accept_table:"
@@ -870,7 +873,7 @@ namespace _regex?
       numstr        _destination
       _asmcmd       =db __destination
       shr           _column, 020H
-      _asmcmd       =db ", .", _regex.=table?._column?.=tkname?
+      _asmcmd       =db ", .", _regex.=table?._column?.=tokenname?
     _end            _repeat
     _asmcmd         =db 00AH, "db 0"
     _asmcmd         =db 00AH, "._accept_table.size = (($ - ._accept_table) shr 1H)"
@@ -880,7 +883,7 @@ namespace _regex?
       varrfsh       _skip
       cmpz          _skip
       _jyesnext
-      _asmcmd       =db 00AH, "db .", _regex.=table?._item?.=tkname?
+      _asmcmd       =db 00AH, "db .", _regex.=table?._item?.=tokenname?
     _end            _foreach
     _asmcmd         =db 00AH, "db 0"
     _asmcmd         =db 00AH, "._skip_table.size = ($ - ._skip_table)"

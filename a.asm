@@ -13,6 +13,18 @@ include "regex.inc"
 
 ;db _context?.concat1442.table?.1.trcnt?
 
+_regex?._declare? _TEST, _constant?._false?
+_regex?._compile? _TEST, "TEST"
+_regex?._declare? _TEST2, _constant?._false?
+_regex?._compile? _TEST2, "TEST2"
+_regex?._declare? _TEST3, _constant?._false?
+_regex?._compile? _TEST3, "TEST3"
+_regex?._connect? _TEST, _TEST2, _TEST3
+
+;db _TEST3.meta?.skippable?
+
+;_regex?._regex_meta_duplicate? _, _TEST.meta?
+
 ;_listing? = _constant?._false?
 ;calminstruction abc?
 ;  arrange _stream,
@@ -23,5 +35,4 @@ include "regex.inc"
 ;_listing? = _constant?._false?
 
 ;display _liststr?
-
 

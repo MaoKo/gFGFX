@@ -153,6 +153,9 @@ namespace _constant?
   _init var const _word?, 10000H
   _init var const _byte_mask?, (_byte - 1H)
   _init var const _word_mask?, (_word - 1H)
+  _init var const _base_octal?, 8H
+  _init var const _base_decimal?, 00AH
+  _init var const _base_hexadecimal?, 010H
   _init const _empty?,
 end namespace
 
@@ -730,9 +733,7 @@ macro calminstruction?._transformable? _target?*
   local     _defined
   _let      _defined
     expand  _defined, _target
-    pshflg
   _end      _let
-  popflg
 end macro
 
 iterate <_kind?*,_action?*>, movvar,evaluate, movsym,expand, movstr,copy

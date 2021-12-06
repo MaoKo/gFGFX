@@ -2,8 +2,7 @@
 _string? := 0H
 namespace _string?
   calminstruction _declare? _result?*
-    _init       var const _empty, ""
-    publish     _result, _empty
+    publish     _result, _constant?._nullstr?
   end calminstruction
 
   calminstruction _duplicate? _result?*, _string?*
@@ -18,7 +17,7 @@ namespace _string?
 
   calminstruction _insert? _result?*, _character?*
     local       _string
-    match       {_character}, _character
+    _balance    _character, {}
     jno         _insert_finish
     compute     _string, string(_result)
     concatenate _string, _character

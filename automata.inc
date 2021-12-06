@@ -240,11 +240,11 @@ namespace _automata?
    _transition_sanitize:
     match       ,_max
     jno         _transition_ensure
-    compute     _max, (_constant?._byte? - 1H)
+    compute     _max, _constant?._byte_mask?
    _transition_ensure:
     _asmcmd     =assert ((_min) <== (_max))
-    and         _min, 0FFH
-    and         _max, 0FFH
+    and         _min, _constant?._byte_mask?
+    and         _max, _constant?._byte_mask?
    _transition_loop:
     check       (_min < _max)
     compute     _condition, _min
@@ -254,7 +254,7 @@ namespace _automata?
     inc         _min
     jump        _transition_loop
    _transition_update:
-    and         _condition, 0FFH
+    and         _condition, _constant?._byte_mask?
     arrange     _lookup, {_condition}
     _call       _bitset?._insert?, ~ _charset, ~ _lookup
     jump        _transition_finish
