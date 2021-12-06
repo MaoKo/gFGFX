@@ -318,29 +318,29 @@ namespace _regex?
  
   calminstruction _regex_lone_ccl? _result?*, _insensitive?*, _stream?*
     local           _negate, _bound_1, _bound_2, _slice, _posix, _item, _lookup
-    _init           const __cce_alnum, _regex?._cce_alnum?
-    _init           const __cce_alpha, _regex?._cce_alpha?
-    _init           const __cce_cntrl, _regex?._cce_cntrl?
-    _init           const __cce_digit, _regex?._cce_digit?
-    _init           const __cce_graph, _regex?._cce_graph?
-    _init           const __cce_lower, _regex?._cce_lower?
-    _init           const __cce_print, _regex?._cce_print?
-    _init           const __cce_punct, _regex?._cce_punct?
-    _init           const __cce_space, _regex?._cce_space?
-    _init           const __cce_blank, _regex?._cce_blank?
-    _init           const __cce_upper, _regex?._cce_upper?
-    _init           const __cce_xdigit, _regex?._cce_xdigit?
-    _init           const __cce_nalnum, _regex?._cce_nalnum?
-    _init           const __cce_nalpha, _regex?._cce_nalpha?
-    _init           const __cce_ncntrl, _regex?._cce_ncntrl?
-    _init           const __cce_ndigit, _regex?._cce_ndigit?
-    _init           const __cce_ngraph, _regex?._cce_ngraph?
-    _init           const __cce_nlower, _regex?._cce_nlower?
-    _init           const __cce_nprint, _regex?._cce_nprint?
-    _init           const __cce_npunct, _regex?._cce_npunct?
-    _init           const __cce_nspace, _regex?._cce_nspace?
-    _init           const __cce_nblank, _regex?._cce_nblank?
-    _init           const __cce_nupper, _regex?._cce_nupper?
+    _init           const     __cce_alnum, _regex?._cce_alnum?
+    _init           const     __cce_alpha, _regex?._cce_alpha?
+    _init           const     __cce_cntrl, _regex?._cce_cntrl?
+    _init           const     __cce_digit, _regex?._cce_digit?
+    _init           const     __cce_graph, _regex?._cce_graph?
+    _init           const     __cce_lower, _regex?._cce_lower?
+    _init           const     __cce_print, _regex?._cce_print?
+    _init           const     __cce_punct, _regex?._cce_punct?
+    _init           const     __cce_space, _regex?._cce_space?
+    _init           const     __cce_blank, _regex?._cce_blank?
+    _init           const     __cce_upper, _regex?._cce_upper?
+    _init           const   __cce_xdigit, _regex?._cce_xdigit?
+    _init           const   __cce_nalnum, _regex?._cce_nalnum?
+    _init           const   __cce_nalpha, _regex?._cce_nalpha?
+    _init           const   __cce_ncntrl, _regex?._cce_ncntrl?
+    _init           const   __cce_ndigit, _regex?._cce_ndigit?
+    _init           const   __cce_ngraph, _regex?._cce_ngraph?
+    _init           const   __cce_nlower, _regex?._cce_nlower?
+    _init           const   __cce_nprint, _regex?._cce_nprint?
+    _init           const   __cce_npunct, _regex?._cce_npunct?
+    _init           const   __cce_nspace, _regex?._cce_nspace?
+    _init           const   __cce_nblank, _regex?._cce_nblank?
+    _init           const   __cce_nupper, _regex?._cce_nupper?
     _init           const __cce_nxdigit, _regex?._cce_nxdigit?
     _call           _advance_stream, ~ _stream, ~ _constant?._lbrack?, ~ _constant?._empty?
     _call           _bitset?._declare?, ~ _result
@@ -546,16 +546,17 @@ namespace _regex?
   end calminstruction
 
   calminstruction _regex_option?: _result?*, _stream?*
-    local       _destination, _current, _insensitive, _anybyte, _ignore, _target
+    local       _destination, _current, _insensitive, _whatsoever, _ignore, _target
     _cstwrp     _insensitive
-    _cstwrp     _anybyte
+    _cstwrp     _whatsoever
     _cstwrp     _ignore
     _init       var const _igcase, "i"
     _init       var const _dotall, "s"
     _init       var const _skipws, "x"
     _init       var const _invert, "-"
     take        _destination, _result
-    push        _insensitive, _constant?._false?
+    push        var _insensitive, _constant?._false?
+    push        var _whatsoever, _constant?._false?
    _regex_option_loop:
     compute     _current, (_stream and _constant?._byte_mask?)
     check       ((_current = _igcase) | (_current = _dotall) | (_current = _skipws))
@@ -565,7 +566,7 @@ namespace _regex?
     arrange     _target, __insensitive
     jyes        _regex_option_update
     cmp         _current, _dotall
-    arrange     _target, __anybyte
+    arrange     _target, __whatsoever
     jyes        _regex_option_update
     arrange     _target, __ignore
    _regex_option_update:
@@ -584,7 +585,7 @@ namespace _regex?
     arrange     _target, __insensitive
     jyes        _regex_option_update_invert
     cmp         _current, _dotall
-    arrange     _target, __anybyte
+    arrange     _target, __whatsoever
     jyes        _regex_option_update_invert
     arrange     _target, __ignore
    _regex_option_update_invert:
@@ -592,15 +593,18 @@ namespace _regex?
     jump        _regex_option_loop_invert
    _regex_option_continue:
     _call       _advance_stream, ~ _stream, ~ _constant?._colon?, ~ _constant?._empty?
-    call        _regex_union?, _destination, _insensitive, _stream
+    call        _regex_union?, _destination, _insensitive, _whatsoever, _stream
    _regex_option_finish:
-    pop         _destination, _insensitive
+    pop         _destination, _insensitive, _whatsoever
   end calminstruction
 
-  calminstruction _regex_dot? _result?*
+  calminstruction _regex_dot? _result?*, _dotall?*
     _repeat     _constant?._byte?, _index:0H
+      cmp       _dotall, _constant?._true?
+      jyes      _regex_dot_insert
       cmp       _index, 00AH
       _jyesnext
+     _regex_dot_insert:
       _call     _automata?._transition?, ~ _result, ~ _regex?._state_1?, ~ _index, ~ _regex?._state_2?
     _end        _repeat
   end calminstruction
@@ -614,13 +618,14 @@ namespace _regex?
     _call       _automata?._transition?, ~ _result, ~ _regex?._state_1?, ~ _constant?._empty?, ~ _regex?._state_2?
   end calminstruction
 
-  calminstruction _regex_atom?: _result?*, _insensitive?*, _stream?*
-    local       _current, _input, _destination, _index, _symbol, _igcase, _slice
+  calminstruction _regex_atom?: _result?*, _insensitive?*, _whatsoever?*, _stream?*
+    local       _current, _input, _destination, _index, _symbol, _igcase, _dotall, _slice
     _init       var const _comment, "(?#"
     _init       var const _option, "(?"
     _init       const _error, "regex: parsing error"
     take        _destination, _result
     take        _igcase, _insensitive
+    take        _dotall, _whatsoever
     cmp         (_stream and 0FFFFFFH), _comment
     jyes        _regex_atom_instantiate
     cmp         (_stream and 0FFFFH), _option
@@ -653,7 +658,7 @@ namespace _regex?
     jump        _regex_atom_finish
    _regex_atom_nested:
     _call       _advance_stream, ~ _stream, ~ _constant?._lparen?
-    call       _regex_union?, _destination, _igcase, _stream
+    call        _regex_union?, _destination, _igcase, _dotall, _stream
     _call       _advance_stream, ~ _stream, ~ _constant?._rparen?, ~ _error
     jump        _regex_atom_finish
    _regex_atom_comment:
@@ -661,22 +666,23 @@ namespace _regex?
     _call       _regex_comment, ~ _destination, ~ _stream
     jump        _regex_atom_finish
    _regex_atom_option:
-    _call        _advance_stream, ~ _stream, ~ _option, ~ _constant?._empty?
+    _call       _advance_stream, ~ _stream, ~ _option, ~ _constant?._empty?
     _call       _regex_option, ~ _destination, ~ _stream
     _call       _advance_stream, ~ _stream, ~ _constant?._rparen?, ~ _error
     jump        _regex_atom_finish
    _regex_atom_dot:
     _call       _advance_stream, ~ _stream, ~ _constant?._dot?, ~ _constant?._empty?
-    _call       _regex_dot, ~ _destination
+    _call       _regex_dot, ~ _destination, ~ _dotall
    _regex_atom_finish:
-    pop         _destination, _igcase
+    pop         _destination, _igcase, _dotall
   end calminstruction
 
-  calminstruction _regex_closure?: _result?*, _insensitive?*, _stream?*
-    local       _return, _current, _input, _destination, _igcase
+  calminstruction _regex_closure?: _result?*, _insensitive?*, _whatsoever?*, _stream?*
+    local       _return, _current, _input, _destination, _igcase, _dotall
     take        _destination, _result
     take        _igcase, _insensitive
-    _call       _regex_atom, ~ _destination, ~ _igcase, ~ _stream
+    take        _dotall, _whatsoever
+    _call       _regex_atom, ~ _destination, ~ _igcase, ~ _dotall, ~ _stream
    _regex_closure_initialise:
     compute     _input, _stream
    _regex_closure_loop:
@@ -710,16 +716,17 @@ namespace _regex?
    _regex_closure_finish:
     str         _input
     publish     _stream, _input
-    pop         _destination, _igcase
+    pop         _destination, _igcase, _dotall
   end calminstruction
  
-  calminstruction _regex_cat?: _result?*, _insensitive?*, _stream?*
-    local       _current, _temporary, _destination, _merge, _igcase
+  calminstruction _regex_cat?: _result?*, _insensitive?*, _whatsoever?*, _stream?*
+    local       _current, _temporary, _destination, _merge, _igcase, _dotall
     take        _destination, _result
     take        _igcase, _insensitive
+    take        _dotall, _whatsoever
     _call       _unique, _temporary, cat
     push        _merge, _temporary
-    _call       _regex_closure, ~ _destination, ~ _igcase, ~ _stream
+    _call       _regex_closure, ~ _destination, ~ _igcase, ~ _dotall, ~ _stream
    _regex_cat_loop:
     cmp         _stream, _constant?._nullstr?
     jyes        _regex_cat_finish
@@ -729,32 +736,33 @@ namespace _regex?
     cmp         _current, _constant?._pipe?
     jyes        _regex_cat_finish
     _call       _automata?._declare?, ~ _merge
-    _call       _regex_closure, ~ _merge, ~ _igcase, ~ _stream
+    _call       _regex_closure, ~ _merge, ~ _igcase, ~ _dotall, ~ _stream
     _call       _automata?._thompson_concat?, ~ _destination, ~ _merge
     _call       _automata?._destroy?, ~ _merge
     jump        _regex_cat_loop
    _regex_cat_finish:
-    pop         _destination, _igcase, _merge
+    pop         _destination, _igcase, _dotall, _merge
   end calminstruction
 
-  calminstruction _regex_union?: _result?*, _insensitive?*, _stream?*
-    local       _temporary, _merge, _destination, _igcase
+  calminstruction _regex_union?: _result?*, _insensitive?*, _whatsoever?*, _stream?*
+    local       _temporary, _merge, _destination, _igcase, _dotall
     take        _destination, _result
     take        _igcase, _insensitive
+    take        _dotall, _whatsoever
     _call       _unique, _temporary, union
     push        _merge, _temporary
-    _call       _regex_cat, ~ _destination, ~ _igcase, ~ _stream
+    _call       _regex_cat, ~ _destination, ~ _igcase, ~ _dotall, ~ _stream
    _regex_union_loop:
     cmp         (_stream and _constant?._byte_mask?), _constant?._pipe?
     jno         _regex_union_finish
     _call       _advance_stream, ~ _stream, ~ _constant?._pipe?, ~ _constant?._empty?
     _call       _automata?._declare?, ~ _merge
-    _call       _regex_cat, ~ _merge, ~ _igcase, ~ _stream
+    _call       _regex_cat, ~ _merge, ~ _igcase, ~ _dotall, ~ _stream
     _call       _automata?._thompson_union?, ~ _destination, ~ _merge
     _call       _automata?._destroy?, ~ _merge
     jump        _regex_union_loop
    _regex_union_finish:
-    pop         _destination, _igcase, _merge
+    pop         _destination, _igcase, _dotall, _merge
   end calminstruction
 
   calminstruction _compile? _result?*, _expression?*
@@ -763,7 +771,7 @@ namespace _regex?
     str         _expression
     publish     _temporary, _expression
     arrange     _result, _result.=machine?
-    _call       _regex_union, ~ _result, ~ _constant?._zero?, ~ _temporary
+    _call       _regex_union, ~ _result, ~ _constant?._zero?, ~ _constant?._zero?, ~ _temporary
     cmp         _temporary, _constant?._nullstr?
     jyes        _compile_finish
     _asmcmd     =err "regex: parsing error"

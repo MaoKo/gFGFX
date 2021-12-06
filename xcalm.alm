@@ -99,10 +99,16 @@ end macro
 
 iterate _setting?,,calminstruction?.
   calminstruction _setting#_init? _target?*, _value?&
-    local     _var, _const
+    local     _var, _str, _const
     setz      _var
+    setz      _str
     match     =sym? _target, _target
     jyes      _init_const
+    match     =str? _target, _target
+    jno       _init_variable
+    not       _str
+    jump      _init_const
+   _init_variable:
     match     =var? _target, _target
     jno       _init_const
     not       _var
@@ -113,8 +119,13 @@ iterate _setting?,,calminstruction?.
     not       _const
    _init_continue:
     cmpz      _var
-    jyes      _init_readonly
+    jyes      _init_string
     varrfsh   _value
+    jump      _init_readonly
+   _init_string:
+    cmpz      _str
+    jyes      _init_readonly
+    str       _value
    _init_readonly:
     cmpz      _const
     jyes      _init_publish
@@ -145,7 +156,7 @@ namespace _constant?
   _init var const _comma?, ","
   _init var const _dquote?, """"
   _init var const _squote?, "'"
-  _init var const _nullstr?, ""
+  _init str const _nullstr?, ""
   _init var const _false?, 0H
   _init var const _zero?, _false ; alias
   _init var const _true?, (not 0H)
@@ -342,23 +353,47 @@ calminstruction calminstruction?.duptop? _symbol?*
   _asmcmd   _continue:
 end calminstruction
 
+macro calminstruction?._strip_meta? _strip?*, _symbol?*, _label?*
+  match     =sym? _strip, _symbol
+  jyes      _label
+  match     =var? _strip, _symbol
+  jyes      _label
+  match     =str? _strip, _symbol
+  jyes      _label
+  arrange   _strip, _symbol
+  _label:
+end macro
+
 calminstruction calminstruction?.push? _symbol?*, _value?&
-  _call     calminstruction?.duptop?, ~ _symbol
-  _asmcmd   =arrange _symbol, _value
+  local       _holder_1, _holder_2, _strip, _instruction
+  _call       calminstruction?._unique?, _holder_1, push
+  _call       calminstruction?._unique?, _holder_2, * push
+  _strip_meta _strip, _symbol, _push_duptop
+  _call       calminstruction?.duptop?, ~ _strip
+  publish     _holder_1:, _symbol
+  publish     _holder_2, _value
+  match       =var? _symbol, _symbol
+  jyes        _push_assemble
+  match       =str? _symbol, _symbol
+  jyes        _push_assemble
+  _asmcmd     =arrange _holder_2, _value
+ _push_assemble:
+  _asmcmd     =_call =calminstruction?.=_init?, ~ _holder_1, ~ _holder_2
 end calminstruction
 
 calminstruction calminstruction?.queue? _symbol?*, _value?&
-  local     _loop, _holder
-  _call     calminstruction?._unique?, _holder, queue
-  _call     calminstruction?._unique?, _loop, label
-  _asmcmd   _loop:
-  _asmcmd   =take _holder, _symbol 
-  _asmcmd   =jyes _loop
-  _call     calminstruction?.push?, ~ _symbol, ~ _value
-  _call     calminstruction?._unique?, * _loop, * label
-  _asmcmd   _loop:
-  _asmcmd   =take _symbol, _holder
-  _asmcmd   =jyes _loop
+  local       _loop, _holder, _strip
+  _strip_meta _strip, _symbol, _queue_strip
+  _call       calminstruction?._unique?, _holder, queue
+  _call       calminstruction?._unique?, _loop, label
+  _asmcmd     _loop:
+  _asmcmd     =take _holder, _strip
+  _asmcmd     =jyes _loop
+  _call       calminstruction?.push?, ~ _symbol, ~ _value
+  _call       calminstruction?._unique?, * _loop, * label
+  _asmcmd     _loop:
+  _asmcmd     =take _strip, _holder
+  _asmcmd     =jyes _loop
 end calminstruction
 
 calminstruction calminstruction?.pop? _symbols?*&
@@ -592,6 +627,31 @@ calminstruction calminstruction?._repeat? _howmany?*, _counters?&
  _repeat_finish:
   _asmcmd     =jump _nested#=end
   _asmcmd     _stack:
+end calminstruction
+
+calminstruction calminstruction?._repeat_2? _howmany?*, _counters?&
+  local       _reverse, _counter, _start, _random
+  _nestinc
+  _call       calminstruction?._unique?, * _stack, * label
+  symrfsh     _howmany
+  _asmcmd     =check (_howmany >== =_constant?.=_zero?)
+  _asmcmd     =jyes _stack
+  _asmcmd     =_asmcmd ===err "Counter of repeat must be >= to zero"
+  _asmcmd     _stack:
+  _call       calminstruction?._unique?, _random, repeat
+  _call       calminstruction?.duptop?, ~ _random
+  _asmcmd     =setz _random
+ _repeat_initialize:
+  take        ,_stack
+  _iterate    _counter*, _counters
+    compute   _start, 1H
+    match     _counter:_start, _counter
+    _locals   _counter
+    _call     calminstruction?.duptop?, ~ _counter
+    _asmcmd   =compute _counter, ((_start) - 1H)
+    push      _stack, _counter
+  _end        _iterate
+  _nestfst
 end calminstruction
 
 calminstruction calminstruction?.execute? _instruction?&
