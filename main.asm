@@ -184,8 +184,8 @@ decl_and_compile? DLBRACE, "<%"
 decl_and_compile? DRBRACE, "%>"
 decl_and_compile? DDASH, "%:"
 decl_and_compile? DDASHDASH, "%:%:"
-decl_and_compile? COMMENT, "(//.*)|(/\*(\*+[^*/]|[^*])*\*+/)", (not 0H)
-decl_and_compile? SPACE, "[ \t\n]+", (not 0H)
+decl_and_compile? COMMENT, "(//.*)|(/\*(\*+[^*/]|[^*])*\*+/)", _constant?._true?
+decl_and_compile? SPACE, "[ \t\n]+", _constant?._true?
 
 _regex?._connect? IDENTIFIER, INT_CONST, STRING, FLOAT_CONST, CHAR_CONST, STRING, LBRACK, RBRACK, LPAREN, RPAREN, LBRACE, RBRACE, DOT, ARROW, PLUSPLUS, MINUSMINUS, ANDB, STAR, PLUS, MINUS, TILDE, EXCLA, DIV, MOD, LSHIFT, RSHIFT, LESS, GREAT, LESSE, GREATE, EQ, NEQ, XOR, ORB, ORL, ANDL, QUES, COLON, SEMICOLON, ELLIP, ASSIGN, MULE, DIVE, MODE, PLUSE, MINE, LSHIFTE, RSHIFTE, ANDBE, XORE, ORBE, COMMA, BACK, DASH, DASHDASH, DLBRACK, DRBRACK, DLBRACE, DRBRACE, DDASH, DDASHDASH, COMMENT, SPACE
 _regex?._generate_lookup? token_c, IDENTIFIER

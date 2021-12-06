@@ -79,7 +79,7 @@ namespace _regex?
 
   calminstruction _match? _result?*, _regex?*, _string?*
     arrange     _regex, _regex.=machine?
-    _call       _automata?._accept?, ~ _resut, ~ _string, ~ _regex
+    _call       _automata?._accept?, ~ _result, ~ _string, ~ _regex
   end calminstruction
 
   calminstruction _advance_stream? _result?*, _token?*, _errmsg?

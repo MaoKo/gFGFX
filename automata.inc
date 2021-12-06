@@ -606,6 +606,41 @@ namespace _automata?
     _call           _bitset?._destroy?, ~ _temporary
   end calminstruction
 
+  calminstruction _accept? _result?*, _string?*, _machine?*
+    local         _return, _temporary, _value, _current, _holder
+    str           _string
+    arrange       _value, _machine.=start?
+    reprnum       _value
+    arrange       _value, {_value}
+    _call         calminstruction?._unique?, _temporary, accept
+    _call         _epsilon_closure, ~ _temporary, ~ _value, ~ _machine
+   _accept_loop:
+    cmp           string(_string), _constant?._nullstr?
+    jyes          _accept_valid
+    compute       _current, (_string and _constant?._byte_mask?)
+    _call         calminstruction?._unique?, _return, * accept
+    _call         _delta, ~ _return, ~ _temporary, ~ _machine, ~ _current
+    _call         _bitset?._destroy?, ~ _temporary
+    arrange       _temporary, _return
+    _call         calminstruction?._unique?, * _return, * accept
+    _call         _epsilon_closure, ~ _return, ~ _temporary, ~ _machine
+    _call         _bitset?._destroy?, ~ _temporary
+    arrange       _temporary, _return 
+    shr           _string, 8H
+    _call         _bitset?._empty?, _value, ~ _temporary
+    cmpz          _value
+    jno           _accept_finish
+    jump          _accept_loop
+   _accept_valid:
+    arrange       _holder, _machine.=accept?
+    _call         _bitset?._intersection?, ~ _temporary, ~ _holder
+    _call         _bitset?._empty?, * _value, ~ _temporary
+   _accept_finish:
+    _call         _bitset?._destroy?, ~ _temporary
+    not           _value
+    publish       _result, _value
+  end calminstruction
+
   calminstruction _connect? _result?*, _machines?*&
     local       _temporary, _holder, _lookup_1, _lookup_2, _value, _machine
     _call       _unique, _temporary, connect

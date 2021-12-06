@@ -9,11 +9,8 @@ include "regex.inc"
 ;_automata?._thompson_concat? a1, a1
 ;_automata?._display? a1
 
-;_regex?._alias? LETTER, "[[:alpha:]_]"
-
-_regex?._declare? _TEST, _constant?._false?
-_regex?._compile? _TEST, "(?s:.)"
-_automata?._display? _TEST.machine?
+_regex?._declare? _register, _constant?._false?
+_regex?._compile? _register, "eax|ebx|ecx|edx|edi|esi|esp|ebp"
 
 ;_regex?._regex_meta_duplicate? _, _TEST.meta?
 
