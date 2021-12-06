@@ -1,4 +1,6 @@
 
+; XXX remove and take bitset? instead
+
 ;struc _set? _elems?*, _count?*
 ;   define .elems? _elems
 ;   .count? = _count

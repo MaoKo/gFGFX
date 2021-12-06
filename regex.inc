@@ -897,3 +897,4 @@ namespace _regex?
     _asmcmd         =db 00AH, "._skip_table.size = ($ - ._skip_table)"
   end calminstruction
 end namespace
+

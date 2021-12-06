@@ -12,16 +12,8 @@ include "regex.inc"
 _regex?._declare? _register, _constant?._false?
 _regex?._compile? _register, "eax|ebx|ecx|edx|edi|esi|esp|ebp"
 
-;_regex?._regex_meta_duplicate? _, _TEST.meta?
-
-;_listing? = _constant?._false?
-;calminstruction abc?
-;  arrange _stream,
-;  _iterate _item*, _stream
-;  _end _iterate
-;end calminstruction
-;abc
-;_listing? = _constant?._false?
-
-;display _liststr?
+_regex?._match? _check, _register, "eax"
+if (_check) 
+  display "x86 Register Match"
+end if
 
