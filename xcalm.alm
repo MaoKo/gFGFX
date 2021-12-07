@@ -629,31 +629,6 @@ calminstruction calminstruction?._repeat? _howmany?*, _counters?&
   _asmcmd     _stack:
 end calminstruction
 
-calminstruction calminstruction?._repeat_2? _howmany?*, _counters?&
-  local       _reverse, _counter, _start, _random
-  _nestinc
-  _call       calminstruction?._unique?, * _stack, * label
-  symrfsh     _howmany
-  _asmcmd     =check (_howmany >== =_constant?.=_zero?)
-  _asmcmd     =jyes _stack
-  _asmcmd     =_asmcmd ===err "Counter of repeat must be >= to zero"
-  _asmcmd     _stack:
-  _call       calminstruction?._unique?, _random, repeat
-  _call       calminstruction?.duptop?, ~ _random
-  _asmcmd     =setz _random
- _repeat_initialize:
-  take        ,_stack
-  _iterate    _counter*, _counters
-    compute   _start, 1H
-    match     _counter:_start, _counter
-    _locals   _counter
-    _call     calminstruction?.duptop?, ~ _counter
-    _asmcmd   =compute _counter, ((_start) - 1H)
-    push      _stack, _counter
-  _end        _iterate
-  _nestfst
-end calminstruction
-
 calminstruction calminstruction?.execute? _instruction?&
   local     _label_loop, _label_end, _holder, _stream
   _balance  _instruction, {}

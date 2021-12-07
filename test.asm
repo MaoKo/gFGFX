@@ -1,6 +1,6 @@
 
 virtual at 0H
-  include "token_c.lex"
+  include "token_c.inc"
 end virtual
 
 virtual at 0H

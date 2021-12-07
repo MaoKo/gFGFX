@@ -839,18 +839,19 @@ namespace _regex?
     numstr          _destination
     _asmcmd         =db 00AH, ".EOF = ", __destination
     _asmcmd         =db 00AH, 00AH, "._state_table:"
+    _asmcmd         =db 00AH, "db 100H dup 0H"
     arrange         _size, _virtual.=_state_table.=sizeof
     varrfsh         _size
     shr             _size, 8H
     _repeat         _size, _index:0H
       _asmcmd       =load __column : 100H =from _virtual:(_virtual.=_state_table+(_index =shl 8H))
       _asmcmd       =db 00AH, "db "
-      _repeat       100H, _count
+      _repeat       _constant?._byte?, _count
         compute     _destination, (_column and 0FFH)
         shr         _column, 8H
         numstr      _destination
         _asmcmd     =db __destination
-        cmp         _count, 100H
+        cmp         _count, _constant?._byte?
         _jyesnext
         _asmcmd     =db ","
       _end          _repeat
