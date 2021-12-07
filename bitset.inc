@@ -163,6 +163,18 @@ namespace _bitset?
 
   _generate_foreach bitset, _declare?, _duplicate?, _element?, _insert?, _length?
 
+  _cache_meta? := 0H
+  namespace _cache_meta?
+  end namespace
+
+  calminstruction _raw_value? _result?*, _bitset?*&
+    _call       _anonymous, _bitset, ~ _bitset
+    movvar      _result, _bitset.=elems?
+    _call       _remove_unnamed, ~ _bitset
+  end calminstruction
+
+  _generate_cache bitset, _raw_value?, _cache_meta?
+
   calminstruction _difference? _result?*, _bitset?*&
     local           _item, _lookup
     _call           _anonymous, _bitset, ~ _bitset

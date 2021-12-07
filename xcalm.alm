@@ -811,6 +811,35 @@ macro _generate_foreach? _kind?*, _declare?*, _duplicate?*, _element?*, _insert?
   end calminstruction
 end macro
 
+declare _raw?
+macro _generate_cache? _kind?*, _raw_value?*, _metaspace?*
+  calminstruction _cache_insert? _namespace?*, _object?*, _translate?&
+    local         _destination
+    _call         _raw_value, _raw, ~ _object
+    varrfsh       _raw
+    arrange       _destination, _namespace._raw?
+    assign        _destination, _translate
+    assign        _destination, _translate
+    push          sym _metaspace.reference?, _destination
+  end calminstruction
+  calminstruction _cache_retreive? _result?*, _success?*, _namespace?*, _object?*&
+    local         _value
+    _call         _raw_value, _raw, ~ _object
+    varrfsh       _raw
+    publish       _success, _constant?._false?
+    expand        _value, _namespace._raw?
+    jno           _#_kind#_cache_retreive_finish
+    publish       _success, _constant?._true?
+    publish       _result, _value
+   _#_kind#_cache_retreive_finish:
+  end calminstruction
+  calminstruction _cache_clear?
+    _unroll     _metaspace.reference?
+      restore   _metaspace.reference?
+    _end        _unroll
+  end calminstruction
+end macro
+
 iterate _setting?,,calminstruction?.
   calminstruction _setting#_cvthex? _result?*, _digit?*
     varrfsh   _digit

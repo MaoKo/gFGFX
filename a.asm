@@ -30,3 +30,8 @@ _regex?._generate_lookup? test, A
 ;_automata?._transition? a1, {0H}, 'D', {2H}
 ;_bitset?._display? a1.table?.0?.charall?
 
+;_bitset?._declare? _bt
+;_bitset?._insert? _bt, {1H}
+;calminstruction?._bitset_cache_retreive? _ret, _suc, _tests, _bt
+;calminstruction?._bitset_cache_clear?
+

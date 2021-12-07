@@ -14,6 +14,8 @@
 ;   .accept? _bitset? _accept_elems
 ;   .transition? _bitset? _transition_elems
 ;   lookup .table? indexed by (_bitset?.elems? belong to .transition?) return _transition_meta? struc
+;   namespace .subset?
+;   end namespace
 ;end struc
 
 _automata? := 0H
@@ -83,6 +85,7 @@ namespace _automata?
     arrange     _holder, _result.=transition?
     _call       _bitset?._declare?, ~ _holder
     _table      _result
+    assign      _result.=subset?, _constant?._zero?
   end calminstruction 
 
   calminstruction _duplicate? _result?*, _machine?*
@@ -694,19 +697,20 @@ namespace _automata?
   end calminstruction
 
   calminstruction _subset_construction? _result?*, _machine?*
-    local       _return, _temporary, _match, _holder, _lookup, _empty, _init, _unvisit, _stack,\
-                  _storage, _symbol, _current, _found, _index, _total, _accept, _value
+    local       _return, _temporary, _match, _holder, _lookup, _empty, _init, _unvisit, _stack, _storage,\
+                  _symbol, _current, _found, _index, _total, _accept, _value, _cache, _success, _closure
     _unique     _match, subset
+    _unique     _empty, subset
+    _unique     _init, subset
+    arrange     _cache, _machine.=subset?
     _call       calminstruction?._unique?, _return, subset
     publish     _result, _return
     _virtual    _return
     _asmcmd     .=_state_table:
     _asmcmd     =db =_constant?.=_byte? =dup =_constant?.=_zero?
     arrange     _holder, _machine.=accept?
-    _unique     _empty, subset
     _call       _bitset?._declare?, ~ _empty
     take        _stack, _empty
-    _unique     _init, subset
     arrange     _value, _machine.=start?
     varrfsh     _value    
     arrange     _lookup, {_value}
@@ -720,8 +724,18 @@ namespace _automata?
     take        _current, _unvisit
     _repeat     _constant?._byte?, _symbol:_constant?._zero?
       _call     calminstruction?._unique?, _temporary, * subset
+      _call     calminstruction?._unique?, _closure, * subset
       _call     _delta, ~ _temporary, ~ _current, ~ _machine, ~ _symbol
-      _call     _epsilon_closure, ~ _temporary, ~ _temporary, ~ _machine
+      _call     _bitset?._cache_retreive?, * _return, _success, ~ _cache, ~ _temporary
+      cmp       _success, _constant?._true?
+      jno       _subset_construction_closure
+      arrange   _closure, _return
+      jump      _subset_construction_search
+     _subset_construction_closure:
+      _call     _epsilon_closure, ~ _closure, ~ _temporary, ~ _machine
+      _call     _bitset?._cache_insert?, ~ _cache, ~ _temporary, ~ _closure
+     _subset_construction_search:
+      arrange   _temporary, _closure
       setz      _found
       setz      _index
      _subset_construction_mark:
