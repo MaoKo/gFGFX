@@ -31,9 +31,9 @@ _regex?._alias? HEX_FRACT, "([[:xdigit:]]+\.)|([[:xdigit:]]+?\.[[:xdigit:]]+)"
 _regex?._alias? DEC_FLOAT, "({DEC_FRACT}{SCF_EXP}?{FLOAT_SUFF}?)|({DIGIT}+{SCF_EXP}{FLOAT_SUFF}?)"
 _regex?._alias? HEX_FLOAT, "0[xX]({HEX_FRACT}|[[:xdigit:]]){BIN_EXP}{FLOAT_SUFF}"
 
-macro decl_and_compile? _name?*, _exp?*, _skip?:0H
+macro decl_and_compile? _name?*, _expr?*, _skip?:_constant?._false?
     _regex?._declare? _name, _skip
-    _regex?._compile? _name, _exp
+    _regex?._compile? _name, _expr
 end macro
 
 decl_and_compile? IDENTIFIER, "({LETTER}|{ESC_UNV})({LETTER}|{DIGIT}|{ESC_UNV})*"

@@ -3,6 +3,7 @@
 ;   .trcnt? = _trcnt
 ;   lookup .charset? indexed by (integer < .trcnt?) return _bitset?
 ;   lookup .destination? indexed by (integer < .trcnt?) return integer
+;   .charall? _bitset? 0H
 ;   .epsilon? _bitset? _epsilon_elems
 ;end struc
 
@@ -19,13 +20,15 @@ _automata? := 0H
 namespace _automata?
   macro calminstruction?._transition_meta_table? _result?*
     assign    _result.=destination?, _constant?._zero?
-    assign    _result.=metachar?, _constant?._zero?
+    assign    _result.=charset?, _constant?._zero?
   end macro
 
   calminstruction _transition_meta? _result?*, _trcnt?*
     local                   _holder
     assign                  _result.=trcnt?, _trcnt
     _transition_meta_table  _result
+    arrange                 _holder, _result.=charall?
+    _call                   _bitset?._declare?, ~ _holder
     arrange                 _holder, _result.=epsilon?
     _call                   _bitset?._declare?, ~ _holder
   end calminstruction
@@ -41,6 +44,9 @@ namespace _automata?
       arrange               _holder_2, _meta.=charset?._index?
       _call                 _bitset?._duplicate?, ~ _holder_1, ~ _holder_2
     _end                    _repeat
+    arrange                 _holder_1, _result.=charall?
+    arrange                 _holder_2, _meta.=charall?
+    _call                   _bitset?._duplicate?, ~ _holder_1, ~ _holder_2
     arrange                 _holder_1, _result.=epsilon?
     arrange                 _holder_2, _meta.=epsilon?
     _call                   _bitset?._duplicate?, ~ _holder_1, ~ _holder_2
@@ -55,6 +61,8 @@ namespace _automata?
       restore   _result.=charset?._index?
     _end      _repeat
     restore   _result.=trcnt?, _result.=destination?, _result.=charset?
+    arrange   _holder, _result.=charall?
+    _call     _bitset?._destroy?, ~ _holder
     arrange   _holder, _result.=epsilon?
     _call     _bitset?._destroy?, ~ _holder
   end calminstruction
@@ -147,6 +155,9 @@ namespace _automata?
       symrfsh           _position
       arrange           _holder_1, _result.=table?._position?.=epsilon?
       call              _bitset?._duplicate?, _holder_1, _holder_2
+      arrange           _holder_1, _result.=table?._position?.=charall?
+      arrange           _holder_2, _base.=charall?
+      call              _bitset?._duplicate?, _holder_1, _holder_2
       arrange           _limit, _base.=trcnt?
       varrfsh           _limit
       assign            _result.=table?._position?.=trcnt?, _limit
@@ -171,7 +182,7 @@ namespace _automata?
   end calminstruction
 
   calminstruction _transition? _result?*, _state_1?*, _condition?, _state_2?*
-    local       _return, _holder, _value, _index, _tested, _update, _min, _max, _charset, _epsilon, _lookup, _meta
+    local       _return, _holder, _value, _index, _test, _update, _min, _max, _charset, _charall, _epsilon, _lookup, _meta
     setz        _update
     _balance    _state_1, {}
     jno         _transition_finish
@@ -193,12 +204,13 @@ namespace _automata?
     arrange     _lookup, {_state_1}
     _call       _bitset?._member?, * _return, ~ _holder, ~ _lookup
     cmpz        _return
-    jno         _transition_insert
+    jno         _transition_condition
     arrange     _meta, _result.=table?._state_1?
     _call       _transition_meta?, ~ _meta, ~ _constant?._zero?
     not         _update
-   _transition_insert:
     _call       _bitset?._insert?, ~ _holder, ~ _lookup
+   _transition_condition:
+    arrange     _charall, _result.=table?._state_1?.=charall?
     symrfsh     _condition
     match       ,_condition
     jyes        _transition_epsilon
@@ -210,9 +222,9 @@ namespace _automata?
    _transition_search:
     check       (_index < _value)
     jno         _transition_mark
-    arrange     _tested, _result.=table?._state_1?.=destination?._index?
-    varrfsh     _tested
-    cmp         _tested, _state_2
+    arrange     _test, _result.=table?._state_1?.=destination?._index?
+    varrfsh     _test
+    cmp         _test, _state_2
     jyes        _transition_found
     inc         _index
     jump        _transition_search
@@ -251,12 +263,14 @@ namespace _automata?
     jno         _transition_update
     arrange     _lookup, {_min}
     _call       _bitset?._insert?, ~ _charset, ~ _lookup
+    _call       _bitset?._insert?, ~ _charall, ~ _lookup
     inc         _min
     jump        _transition_loop
    _transition_update:
     and         _condition, _constant?._byte_mask?
     arrange     _lookup, {_condition}
     _call       _bitset?._insert?, ~ _charset, ~ _lookup
+    _call       _bitset?._insert?, ~ _charall, ~ _lookup
     jump        _transition_finish
    _transition_epsilon:
     arrange     _lookup, {_state_2}
@@ -378,9 +392,9 @@ namespace _automata?
 
   calminstruction _thompson_concat? _result?*, _machine?*, _check?:0H
     local       _return, _value, _temporary
+    _unique     _temporary, concat
     _sanitize   _check, _return, _thompson_concat_perform, _thompson_concat_finish, _result, _machine
    _thompson_concat_perform:
-    _call       _unique, _temporary, concat
     _call       _duplicate, ~ _temporary, ~ _machine
     arrange     _value, _result.=stcnt?
     dec         _value
@@ -395,11 +409,11 @@ namespace _automata?
 
   calminstruction _thompson_union? _result?*, _machine?*, _check?:0H
     local       _return, _holder, _lookup_1, _lookup_2, _temporary, _value, _final_1, _final_2, _finish
+    _unique     _temporary, union
     _sanitize   _check, _return, _thompson_union_perform, _thompson_union_finish, _result, _machine
   _thompson_union_perform:
     compute     _value, 1H
     _call       _adjust, ~ _result, ~ _value
-    _call       _unique, _temporary, union
     _call       _duplicate, ~ _temporary, ~ _machine
     arrange     _value, _result.=stcnt?
     varrfsh     _value
@@ -468,7 +482,7 @@ namespace _automata?
   ; A+ => AA*
   calminstruction _emulate_positive? _result?*
     local       _temporary
-    _call       _unique, _temporary, positive
+    _unique     _temporary, positive
     _call       _duplicate, ~ _temporary, ~ _result
     _call       _thompson_closure, ~ _temporary
     _call       _thompson_concat, ~ _result, ~ _temporary
@@ -478,9 +492,9 @@ namespace _automata?
   ; A? => A|
   calminstruction _emulate_optional? _result?*
     local       _temporary
+    _unique     _temporary, optional
     _init       const _lookup_1, {0H}
     _init       const _lookup_2, {1H}
-    _call       _unique, _temporary, optional
     _call       _skeleton, ~ _temporary
     _call       _transition, ~ _temporary, ~ _lookup_1, ~ _constant?._empty?, ~ _lookup_2
     _call       _thompson_union, ~ _result, ~ _temporary  
@@ -540,7 +554,7 @@ namespace _automata?
   ; A{N,} => (A...A)A* (N times)
   calminstruction _infinite_sequence? _result?*, _base?*
     local       _temporary
-    _call       _unique, _temporary, infinite
+    _unique     _temporary, infinite
     _call       _duplicate, ~ _temporary, ~ _result
     _call       _thompson_closure, ~ _temporary
     _call       _finite_sequence, ~ _result, ~ _base, ~ _constant?._empty?
@@ -550,14 +564,16 @@ namespace _automata?
 
   calminstruction _delta? _result?*, _base?*, _machine?*, _character?*
     local           _item, _out, _return, _holder, _lookup, _index, _limit, _temporary
-    _call           _unique, _temporary, delta
+    _unique         _temporary, delta
     _call           _bitset?._blit?, ~ _temporary, ~ _base
     _call           _bitset?._declare?, ~ _result
     varrfsh         _character
+    arrange         _character, {_character}
+    arrange         _holder, _machine.=transition?
+    _call           _bitset?._intersection?, ~ _temporary, ~ _holder
     _bitset_foreach _temporary, _item
-      arrange       _holder, _machine.=transition?
-      arrange       _lookup, {_item}
-      _call         _bitset?._member?, _return, ~ _holder, ~ _lookup
+      arrange       _holder, _machine.=table?._item?.=charall?
+      _call         _bitset?._member?, _return, ~ _holder, ~ _character
       cmpz          _return
       _jyesnext
       setz          _index
@@ -567,8 +583,7 @@ namespace _automata?
       check         (_index < _limit) 
       _jnonext
       arrange       _holder, _machine.=table?._item?.=charset?._index?
-      arrange       _lookup, {_character}
-      _call         _bitset?._member?, * _return, ~ _holder, ~ _lookup
+      _call         _bitset?._member?, * _return, ~ _holder, ~ _character
       cmpz          _return
       jyes          _delta_next
       arrange       _out, _machine.=table?._item?.=destination?._index?
@@ -583,27 +598,40 @@ namespace _automata?
   end calminstruction
 
   calminstruction _epsilon_closure? _result?*, _base?*, _machine?*
-    local           _temporary, _holder, _lookup, _return, _target, _item
+    local           _temporary, _intersect, _holder, _lookup, _return, _target, _item
+    _unique         _temporary, epsilon
+    _unique         _intersect, epsilon
     _call           _bitset?._blit?, ~ _result, ~ _base
-    _call           _unique, _temporary, epsilon
+    _call           _bitset?._empty?, _return, ~ _result
+    cmpz            _return
+    jno             _epsilon_closure_finish
     _call           _bitset?._duplicate?, ~ _temporary, ~ _result
    _epsilon_closure_loop:
-    _bitset_foreach _result, _item
-      arrange       _holder, _machine.=transition?
-      arrange       _lookup, {_item}
-      _call         _bitset?._member?, _return, ~ _holder, ~ _lookup
-      cmpz          _return
-      _jyesnext
+    _call           _bitset?._duplicate?, ~ _intersect, ~ _result
+    arrange         _holder, _machine.=transition?
+    _call           _bitset?._intersection?, ~ _intersect, ~ _holder
+    _bitset_foreach _intersect, _item
       arrange       _holder, _machine.=table?._item?.=epsilon?
       _call         _bitset?._union?, ~ _temporary, ~ _holder
     _end            _foreach
+    ;_bitset_foreach _result, _item
+    ;  arrange       _holder, _machine.=transition?
+    ;  arrange       _lookup, {_item}
+    ;  _call         _bitset?._member?, _return, ~ _holder, ~ _lookup
+    ;  cmpz          _return
+    ;  _jyesnext
+    ;  arrange       _holder, _machine.=table?._item?.=epsilon?
+    ;  _call         _bitset?._union?, ~ _temporary, ~ _holder
+    ;_end            _foreach
     _call           _bitset?._equivalent?, * _return, ~ _temporary, ~ _result
     cmpz            _return
-    jno             _epsilon_closure_finish
+    jno             _epsilon_closure_destroy
     _call           _bitset?._union?, ~ _result, ~ _temporary
     jump            _epsilon_closure_loop
-   _epsilon_closure_finish:
+   _epsilon_closure_destroy:
     _call           _bitset?._destroy?, ~ _temporary
+    _call           _bitset?._destroy?, ~ _intersect
+   _epsilon_closure_finish:
   end calminstruction
 
   calminstruction _accept? _result?*, _string?*, _machine?*
@@ -643,7 +671,7 @@ namespace _automata?
 
   calminstruction _connect? _result?*, _machines?*&
     local       _temporary, _holder, _lookup_1, _lookup_2, _value, _machine
-    _call       _unique, _temporary, connect
+    _unique     _temporary, connect
     compute     _value, 1H
     _call       _adjust, ~ _result, ~ _value
     setz         _value
@@ -666,55 +694,40 @@ namespace _automata?
   end calminstruction
 
   calminstruction _subset_construction? _result?*, _machine?*
-    local       _return, _temporary, _match, _holder, _lookup, _empty, _unvisit, _stack,\
-                  _storage, _symbol, _current, _found, _index, _total, _accept
-    local       _value
-
-    _cstwrp     _return
-    _cstwrp     _temporary
-    _cstwrp     _match
-    _cstwrp     _found
-    _cstwrp     _empty
-    _cstwrp     subset
-    _init       var const _position, 0H
-    _init       var const _byte, 100H
-    call        _unique, __match, _subset
-    call        _unique, __return, _subset
+    local       _return, _temporary, _match, _holder, _lookup, _empty, _init, _unvisit, _stack,\
+                  _storage, _symbol, _current, _found, _index, _total, _accept, _value
+    _unique     _match, subset
+    _call       calminstruction?._unique?, _return, subset
     publish     _result, _return
     _virtual    _return
     _asmcmd     .=_state_table:
-    ;_repeat     100H, _symbol:0H
-    ;  _asmcmd   =db 0H
-    ;_end        _repeat
-
+    _asmcmd     =db =_constant?.=_byte? =dup =_constant?.=_zero?
     arrange     _holder, _machine.=accept?
-    call        _unique, __empty, _subset
-    call        _bitset?._declare?, _empty
+    _unique     _empty, subset
+    _call       _bitset?._declare?, ~ _empty
     take        _stack, _empty
-    call        _unique, __temporary, _subset
+    _unique     _init, subset
     arrange     _value, _machine.=start?
     varrfsh     _value    
     arrange     _lookup, {_value}
-    call        _epsilon_closure, _temporary, _lookup, _machine
-    push        _unvisit, _temporary
-    push        _stack, _temporary
+    _call       _epsilon_closure, ~ _init, ~ _lookup, ~ _machine
+    push        sym _unvisit, _init
+    push        sym _stack, _init
     compute     _total, 2H
    _subset_construction_until:
     take        _unvisit,_unvisit
     jno         _subset_construction_finish
-    ;_asmcmd     =db 00AH, "db "
     take        _current, _unvisit
-    _repeat     _byte, _symbol:0H
-      ;symrfsh  _symbol
-      call      _unique, __temporary, _subset
-      call      _delta, _temporary, _current, _machine, _symbol
-      call      _epsilon_closure, _temporary, _temporary, _machine
+    _repeat     _constant?._byte?, _symbol:_constant?._zero?
+      _call     calminstruction?._unique?, _temporary, * subset
+      _call     _delta, ~ _temporary, ~ _current, ~ _machine, ~ _symbol
+      _call     _epsilon_closure, ~ _temporary, ~ _temporary, ~ _machine
       setz      _found
       setz      _index
      _subset_construction_mark:
       take      _storage, _stack
       jno       _subset_construction_restore
-      call      _bitset?._equivalent?, __return, _temporary, _storage
+      _call     _bitset?._equivalent?, * _return, ~ _temporary, ~ _storage
       inc       _found
       cmpz      _return
       jyes      _subset_construction_mark
@@ -729,35 +742,27 @@ namespace _automata?
       push      _stack, _temporary
       inc       _total
       compute   _found, (_total - 1H)
-      call      _bitset?._duplicate?, _match, _temporary
-      call      _bitset?._intersection?, _match, _holder
-      call      _bitset?._empty?, __return, _match
+      _call     _bitset?._duplicate?, ~ _match, ~ _temporary
+      _call     _bitset?._intersection?, ~ _match, ~ _holder
+      _call     _bitset?._empty?, * _return, ~ _match
       cmpz      _return
       jno       _subset_construction_increment
-      call      _bitset?._element?, __return, _match, _position
+      _call     _bitset?._element?, * _return, ~ _match, ~ _constant?._zero?
       push      _accept, _found,_return
      _subset_construction_increment:
-      ;symrfsh   _found
-      ;stringify _found
       _asmcmd   =db _found
-      cmp       _symbol, 0FFH
-      _jyesexit
-      ;_asmcmd   =db ","
     _end        _repeat
     jump        _subset_construction_until
    _subset_construction_finish:
     _asmcmd     .=_state_table.=sizeof == (=$ - .=_state_table)
     _asmcmd     .=_accept_table:
-   _subset_construction_unroll:
-    take        _accept,_accept
-    jno         _subset_construction_end
-    _asmcmd     =dd _accept
-    ;arrange     _found, _accept
-    ;stringify   _found
-    ;;_asmcmd     =db "db ", __found, ", 0", 00AH
-    take        ,_accept
-    jump        _subset_construction_unroll
-   _subset_construction_end:
+    _unroll     _accept
+      _asmcmd   =dd _accept
+    _end        _unroll
+    ;_call       _bitset?._destroy?, ~ _match
+    _unroll     _stack
+    ;  _call     _bitset?._destroy?, ~ _stack
+    _end        _unroll
     _asmcmd     .=_accept_table.=sizeof == (=$ - .=_accept_table)
     _asmcmd     =end =virtual
   end calminstruction

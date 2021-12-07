@@ -839,7 +839,6 @@ namespace _regex?
     numstr          _destination
     _asmcmd         =db 00AH, ".EOF = ", __destination
     _asmcmd         =db 00AH, 00AH, "._state_table:"
-    _asmcmd         =db 00AH, "db 100H dup 0H"
     arrange         _size, _virtual.=_state_table.=sizeof
     varrfsh         _size
     shr             _size, 8H

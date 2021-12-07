@@ -191,7 +191,7 @@ namespace _bitset?
 
   calminstruction _subset? _result?*, _bitset_1?*, _bitset_2?*
     local           _temporary, _empty
-    _call           _unique, _temporary, subset
+    _unique         _temporary, subset
     _call           _anonymous, _bitset_1, ~ _bitset_1
     _call           _anonymous, _bitset_2, ~ _bitset_2
     _call           _duplicate, ~ _temporary, ~ _bitset_1
