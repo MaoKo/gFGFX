@@ -814,14 +814,13 @@ namespace _regex?
   calminstruction _generate_lookup? _module?*, _regex?*
     local           _holder, _virtual, _column, _size, _destination, _index, _count, _item, _last, _enum, _skip
     _init           const __module, _module
-    _init           const __virtual, _virtual
     _init           const __column, _column
     _init           const __destination, _destination
     _init           const __size, _size
     stringify       _module
     _asmcmd         =db 00AH, __module, "::"
     arrange         _holder, _regex.=machine?
-    call            _automata?._subset_construction?, __virtual, _holder
+    _call           _automata?._subset_construction?, _virtual, ~ _holder
     _asmcmd         =db 00AH, 00AH, "; [TOKEN]", 00AH
     arrange         _holder, _regex.=machine?.=accept?
     setz            _enum

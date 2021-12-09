@@ -37,7 +37,7 @@ namespace _lexer?
     varrfsh     _eof
     setz        _index
    _get_next_token_skippable:
-    loadvar     byte, _extract, <[_table]>:(<[_table]>._skip_table + _index)
+    ;loadvar     byte, _extract, <[_table]>:(<[_table]>._skip_table + _index)
     cmpz        _extract
     jyes        _get_next_token_register
     assign      _skip._extract, _empty
@@ -46,10 +46,10 @@ namespace _lexer?
    _get_next_token_register:
     setz        _index
    _get_next_token_bookmark:
-    loadvar     byte, _extract, <[_table]>:(<[_table]>._accept_table + (_index shl 1H))
+    ;loadvar     byte, _extract, <[_table]>:(<[_table]>._accept_table + (_index shl 1H))
     cmpz        _extract
     jyes        _get_next_token_transition
-    loadsym     byte, _value, <[_table]>:(<[_table]>._accept_table + ((_index shl 1H) + 1H))
+    ;loadsym     byte, _value, <[_table]>:(<[_table]>._accept_table + ((_index shl 1H) + 1H))
     assign      _accept._extract, _value
     inc         _index
     jump        _get_next_token_bookmark
@@ -63,8 +63,8 @@ namespace _lexer?
    _get_next_token_advance:
     check       (_source >= _size)
     jyes        _get_next_token_retreive
-    loadvar     byte, _value, <[_virtual]>:<[_source]>
-    loadvar     byte, _state, <[_table]>:(<[_table]>._state_table + (_state shl 8H) + (_value))
+    ;loadvar     byte, _value, <[_virtual]>:<[_source]>
+    ;loadvar     byte, _state, <[_table]>:(<[_table]>._state_table + (_state shl 8H) + (_value))
     inc         _source
     cmpz        _state ; reach dead state
     jno         _get_next_token_transition
@@ -85,9 +85,9 @@ namespace _lexer?
     publish     _lexeme, _holder
     match       ,_debug
     jyes        _get_next_token_finish
-    loadvar     dword, _offset, <[_table]>:(<[_table]>._string_table + (_token shl 2H))
-    loadvar     byte, _length, <[_table]>:_offset
-    loadstr     _length, _holder, <[_table]>:(_offset + 1H)
+    ;loadvar     dword, _offset, <[_table]>:(<[_table]>._string_table + (_token shl 2H))
+    ;loadvar     byte, _length, <[_table]>:_offset
+    ;loadstr     _length, _holder, <[_table]>:(_offset + 1H)
     publish     _debug, _holder
    _get_next_token_finish:
   end calminstruction

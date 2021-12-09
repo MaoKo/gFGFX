@@ -8,16 +8,16 @@ include "regex.inc"
 include "lexer.inc"
 include "parser.inc"
 
-macro decl_and_compile? _name?*, _expr?*, _skip?:_constant?._false?
-    _regex?._declare? _name, _skip
-    _regex?._compile? _name, _expr
-end macro
+;macro decl_and_compile? _name?*, _expr?*, _skip?:_constant?._false?
+;    _regex?._declare? _name, _skip
+;    _regex?._compile? _name, _expr
+;end macro
 
-decl_and_compile? A, "A"
-decl_and_compile? B, "B"
+;decl_and_compile? A, "A"
+;decl_and_compile? B, "B"
 
-_regex?._connect? A, B
-_regex?._generate_lookup? test, A
+;_regex?._connect? A, B
+;_regex?._generate_lookup? test, A
 
 ;_automata?._declare? a1
 ;_automata?._new_state? a1, _constant?._true?, _constant?._false?
@@ -32,6 +32,22 @@ _regex?._generate_lookup? test, A
 
 ;_bitset?._declare? _bt
 ;_bitset?._insert? _bt, {1H}
-;calminstruction?._bitset_cache_retreive? _ret, _suc, _tests, _bt
-;calminstruction?._bitset_cache_clear?
+;_bitset?._declare? _abc
+;_bitset?._insert? _abc, {2H}
+;_bitset?._cache_retreive_object? _bt, _suc, _test_1, _bt
+;_bitset?._cache_insert_object? _test_1, _bt, _abc
+
+;_bitset?._cache_insert? _test_1, {1H}, ABC
+;_bitset?._cache_insert? _test_2, {1H}, DEF
+;_bitset?._cache_retreive? _ret, _suc, _test_1, {1H}
+;_bitset?._cache_clear? *
+
+_regex?._declare? _register, _constant?._false?
+_regex?._compile? _register, "(x|y|z)mm([0-9]|(1[0-9])|(2[0-9])|30|31)"
+;repeat 0FFFFH
+_regex?._match? _check, _register, "xmm1ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+db _check
+_regex?._match? _check, _register, "xmm1"
+db _check
+;end repeat
 

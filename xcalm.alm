@@ -308,6 +308,14 @@ end macro
 ;  _asmcmd   =reprnum _target
 ;end calminstruction
 
+calminstruction calminstruction?.assert? _condition?*&
+  _call     calminstruction?._unique?, _continue, label
+  _asmcmd   =check _condition
+  _asmcmd   =jyes _continue
+  _asmcmd   =_asmcmd ===assert (===_constant?.===_false?)
+  _asmcmd   _continue:
+end calminstruction
+
 calminstruction calminstruction?.assign? _target?*, _value?&
   local     _holder
   _call     calminstruction?._unique?, _holder, assign
@@ -321,19 +329,19 @@ calminstruction calminstruction?.assign? _target?*, _value?&
  _assign_finish:
 end calminstruction
 
-calminstruction calminstruction?.loadstr? _size?*, _target?*, _from?*&
-  _asmcmd   =execute { =load _target:_size =from _from }
-end calminstruction
+macro calminstruction?.loadstr? _size?*, _target?*, _from?*&
+  _asmcmd   =load _target:=_size =from _from
+end macro
 
-calminstruction calminstruction?.loadvar? _size?*, _target?*, _from?*&
-  call      calminstruction?.loadstr?, _size, _target, _from
-  ;_asmcmd   =varrfsh _target
-end calminstruction
+macro calminstruction?.loadvar? _size?*, _target?*, _wrapper?*, _from?*&
+  loadstr   _size, _wrapper, _from
+  varrfsh   _target
+end macro
 
-calminstruction calminstruction?.loadsym? _size?*, _target?*, _from?*&
-  call      calminstruction?.loadvar?, _size, _target, _from
-  _asmcmd   =symrfsh _target
-end calminstruction
+macro calminstruction?.loadsym? _size?*, _target?*, _wrapper?*, _from?*&
+  loadvar   _size, _wrapper, _from
+  symrfsh   _target
+end macro
 
 macro calminstruction?._locals? _target?*&
   _asmcmd   =local _target
@@ -812,20 +820,28 @@ macro _generate_foreach? _kind?*, _declare?*, _duplicate?*, _element?*, _insert?
 end macro
 
 declare _raw?
-macro _generate_cache? _kind?*, _raw_value?*, _metaspace?*
+macro calminstruction?._extract? _raw_value?*, _object?*
+  _call     _raw_value, _raw, ~ _object
+  varrfsh   _raw
+end macro
+
+macro _generate_cache? _kind?*, _raw_value?*, _raw_build?*, _metaspace?*
   calminstruction _cache_insert? _namespace?*, _object?*, _translate?&
     local         _destination
-    _call         _raw_value, _raw, ~ _object
-    varrfsh       _raw
+    _extract      _raw_value, _object
+    symrfsh       _translate
     arrange       _destination, _namespace._raw?
     assign        _destination, _translate
     assign        _destination, _translate
     push          sym _metaspace.reference?, _destination
   end calminstruction
+  calminstruction _cache_insert_object? _namespace?*, _object?*, _translate?*&
+    _call         _raw_value, _translate, ~ _translate
+    _call         _cache_insert, ~ _namespace, ~ _object, ~ _translate
+  end calminstruction
   calminstruction _cache_retreive? _result?*, _success?*, _namespace?*, _object?*&
     local         _value
-    _call         _raw_value, _raw, ~ _object
-    varrfsh       _raw
+    _extract      _raw_value, _object
     publish       _success, _constant?._false?
     expand        _value, _namespace._raw?
     jno           _#_kind#_cache_retreive_finish
@@ -833,10 +849,42 @@ macro _generate_cache? _kind?*, _raw_value?*, _metaspace?*
     publish       _result, _value
    _#_kind#_cache_retreive_finish:
   end calminstruction
-  calminstruction _cache_clear?
+  calminstruction _cache_retreive_object? _result?*, _success?*, _namespace?*, _object?*&
+    _call         _cache_retreive, ~ _result, ~ _success, ~ _namespace, ~ _object
+    cmpz          _success
+    jyes          _cache_retreive_object_finish
+    _call         _raw_build, ~ _result, ~ _result
+    restore       _result
+   _cache_retreive_object_finish:
+  end calminstruction
+  calminstruction _cache_clear? _namespace?*
+    local       _target, _ignore, _stack, _item, _all
+    compute     _all, _constant?._true?
+    match       =*, _namespace
+    jyes        _cache_clear_unroll
+    not         _all
+    symnum      _namespace
+   _cache_clear_unroll:
     _unroll     _metaspace.reference?
-      restore   _metaspace.reference?
+      take      _item, _metaspace.reference?
+      match     _target=._ignore, _item
+      jno       _cache_clear_finish
+      cmpz      _all
+      jno       _cache_clear_restore
+      symnum    _target
+      cmp       _target, _namespace
+      jno       _cache_clear_save
+     _cache_clear_restore:
+      restore   _item
+      jump      _cache_clear_continue
+     _cache_clear_save:
+      push      sym _stack, _item
+     _cache_clear_continue:
+      take      _metaspace.reference?, _item
     _end        _unroll
+    _unroll     _stack, _metaspace.reference?
+    _end        _unroll
+   _cache_clear_finish:
   end calminstruction
 end macro
 
@@ -863,17 +911,17 @@ macro calminstruction?.append? _list?*, _item?&
 end macro
 
 calminstruction calminstruction?.restore? _list?*&
-  local     _holder
-  _call     calminstruction?._unique, _holder, restore
-  _iterate  _item, _list
-    match   =~ _item, _item
-    jyes    _restore_immediate
-    ;_asmcmd =arrange _holder, _item
-    ;_asmcmd =execute { =restore <[=_holder]> }
+  local       _holder
+  _unique     _holder, restore
+  _iterate    _item, _list
+    match     =~ _item, _item
+    jyes      _restore_immediate
+    _asmcmd   =arrange _holder, _item
+    ;_asmcmd   =execute { =restore <[_holder]> }
     _continue
    _restore_immediate:
-    _asmcmd =execute { =restore _item }
-  _end      _iterate
+    _asmcmd   =execute { =restore _item }
+  _end        _iterate
 end calminstruction
 
 macro calminstruction?._virtual? _label?, _at?:0H
@@ -931,8 +979,7 @@ end calminstruction
 
 calminstruction _sanitize_digit? _result?*, _digit?*, _base?*
   local       _value, _limit, _overflow
-  _cstwrp     _base
-  _asmcmd     =assert ((__base > 1H) & (__base <== 010H))
+  assert      ((_base > 1H) & (_base <= 010H))
   setz        _overflow
   setz        _value
   not         _value
@@ -967,13 +1014,12 @@ end calminstruction
 
 calminstruction _unsigned_atoi? _result?*, _stream?*, _base?:00AH, _field?
   local       _return, _value, _current, _input, _decrement
-  _cstwrp     _decrement
   match       ,_field
   setz        _decrement
   not         _decrement
   jyes        _unsigned_atoi_process
   compute     _decrement, _field
-  _asmcmd     =assert (__decrement > 0H)
+  assert      (_decrement > 0H)
  _unsigned_atoi_process:
   compute     _input, _stream
   compute     _current, (_input and _constant?._byte_mask?)

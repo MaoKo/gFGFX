@@ -129,8 +129,8 @@ namespace _bitset?
   calminstruction _element? _result?*, _bitset?*, _position?*
     local       _value, _offset, _bitmask, _iterator
     _cstwrp     _bitmask
-    _cstwrp     _position
-    _asmcmd     =assert (_position >== 0H)
+    _init       sym const _from, _btcnt:_bitmask
+    assert      (_position >= 0H)
     setz        _offset
     arrange     _value, _bitset.=elems?
     varrfsh     _value
@@ -140,8 +140,7 @@ namespace _bitset?
     add         _offset, (bsf _value)
     compute     _value, (_value shr (bsf _value))
     compute     _bitmask, (_value and 0FFH)    
-    ;_asmcmd     =load __bitmask:=byte =from =_btcnt:__bitmask
-    loadvar     byte, _bitmask, _btcnt:_bitmask
+    loadvar     byte, _bitmask, __bitmask, _from
     check       ((_position - _bitmask) < 0H)
     jno         _element_update
    _element_find:
@@ -173,7 +172,13 @@ namespace _bitset?
     _call       _remove_unnamed, ~ _bitset
   end calminstruction
 
-  _generate_cache bitset, _raw_value?, _cache_meta?
+  calminstruction _raw_build? _result?*, _raw?*
+    _call       _declare, ~ _result
+    varrfsh     _raw
+    assign      _result.=elems?, _raw
+  end calminstruction
+
+  _generate_cache bitset, _raw_value?, _raw_build?, _cache_meta?
 
   calminstruction _difference? _result?*, _bitset?*&
     local           _item, _lookup
