@@ -811,41 +811,43 @@ namespace _regex?
     _call       _compile, ~ _result, ~ _expression
   end calminstruction
 
-  calminstruction _generate_lookup? _module?*, _regex?*
+  calminstruction _generate_lookup? _module?*, _regex?*, _strtlb?:_constant?._true?
     local           _holder, _virtual, _column, _size, _destination, _index, _count, _item, _last, _enum, _skip
     _init           const __module, _module
     _init           const __column, _column
     _init           const __destination, _destination
     _init           const __size, _size
+    _init           var const _newline, 00AH
     stringify       _module
-    _asmcmd         =db 00AH, __module, "::"
+    _asmcmd         =db _newline, __module, "::"
     arrange         _holder, _regex.=machine?
     _call           _automata?._subset_construction?, _virtual, ~ _holder
-    _asmcmd         =db 00AH, 00AH, "; [TOKEN]", 00AH
+    _asmcmd         =db _newline, _newline, "; [TOKEN]", _newline
     arrange         _holder, _regex.=machine?.=accept?
     setz            _enum
+    inc             _enum
     _bitset_foreach _holder, _item
-      _asmcmd       =db 00AH, ".", _regex.=table?._item?.=tokenname?, " = "
+      _asmcmd       =db _newline, ".", _regex.=table?._item?.=tokenname?, " = "
       compute       _destination, _enum
       numstr        _destination
-      inc           _enum
       _asmcmd       =db __destination
+      inc           _enum
     _end            _foreach
     compute         _destination, (_enum + 0H)
     numstr          _destination
-    _asmcmd         =db 00AH, ".ERROR = ", __destination
+    _asmcmd         =db _newline, ".ERROR = ", __destination
     compute         _destination, (_enum + 1H)
     numstr          _destination
-    _asmcmd         =db 00AH, ".EOF = ", __destination
-    _asmcmd         =db 00AH, 00AH, "._state_table:"
+    _asmcmd         =db _newline, ".EOF = ", __destination
+    _asmcmd         =db _newline, _newline, "._state_table:"
     arrange         _size, _virtual.=_state_table.=sizeof
     varrfsh         _size
     shr             _size, 8H
-    _repeat         _size, _index:0H
-      _asmcmd       =load __column : 100H =from _virtual:(_virtual.=_state_table+(_index =shl 8H))
-      _asmcmd       =db 00AH, "db "
+    _repeat         _size, _index:_constant?._zero?
+      _asmcmd       =load __column : =_constant?.=_byte? =from _virtual:(_virtual.=_state_table+(_index =shl 8H))
+      _asmcmd       =db _newline, "db "
       _repeat       _constant?._byte?, _count
-        compute     _destination, (_column and 0FFH)
+        compute     _destination, (_column and _constant?._byte_mask?)
         shr         _column, 8H
         numstr      _destination
         _asmcmd     =db __destination
@@ -854,46 +856,47 @@ namespace _regex?
         _asmcmd     =db ","
       _end          _repeat
     _end            _repeat
-    _asmcmd         =db 00AH
+    cmpz            _strtlb
+    jyes            _generate_lookup_accept
+    _asmcmd         =db _newline
     _bitset_foreach _holder, _item
       arrange       _size, _regex.=table?._item?.=tokenname?
       compute       _size, lengthof(_size)
       numstr        _size
-      _asmcmd       =db 00AH, "._string.", _regex.=table?._item?.=tokenname?,\
+      _asmcmd       =db _newline, "._string.", _regex.=table?._item?.=tokenname?,\
                       ":", " db ", __size, ", """, _regex.=table?._item?.=tokenname?, """"
     _end            _foreach
-    _asmcmd         =db 00AH, "._string.ERROR: db 5, ""ERROR"""
-    _asmcmd         =db 00AH, "._string.EOF: db 3, ""EOF"""
-    _asmcmd         =db 00AH, "._string_table: ; [DEBUG]", 00AH, "dd "
+    _asmcmd         =db _newline, "._string.ERROR: db 5, ""ERROR"""
+    _asmcmd         =db _newline, "._string.EOF: db 3, ""EOF"""
+    _asmcmd         =db _newline, "._string_table: ; [DEBUG]", _newline, "dd "
     _bitset_foreach _holder, _item,, _last
       _asmcmd       =db "._string.", _regex.=table?._item?.=tokenname?, ", "
     _end            _foreach
     _asmcmd         =db "._string.ERROR, ._string.EOF"
-    _asmcmd         =db 00AH, 00AH, "._accept_table:"
-    arrange         _size, _virtual.=_accept_table.=sizeof
-    varrfsh         _size
+   _generate_lookup_accept:
+    _asmcmd         =db _newline, _newline, "._accept_table:"
+    evaluate        _size, _virtual.=_accept_table.=sizeof
     shr             _size, 3H
-    _repeat         _size, _index:0H
-      _asmcmd       =load __column : 8H =from _virtual:(_virtual.=_accept_table+(_index =shl 3H))
-      _asmcmd       =db 00AH, "db "
-      compute       _destination, (_column and 0FFH)
+    _repeat         _size, _index:_constant?._zero?
+      _asmcmd       =load __column : =qword =from _virtual:(_virtual.=_accept_table+(_index =shl 3H))
+      _asmcmd       =db _newline, "db "
+      compute       _destination, (_column and _constant?._byte_mask?)
       numstr        _destination
       _asmcmd       =db __destination
       shr           _column, 020H
       _asmcmd       =db ", .", _regex.=table?._column?.=tokenname?
     _end            _repeat
-    _asmcmd         =db 00AH, "db 0"
-    _asmcmd         =db 00AH, "._accept_table.size = (($ - ._accept_table) shr 1H)"
-    _asmcmd         =db 00AH, 00AH, "._skip_table:"
+    _asmcmd         =db _newline, "db 0"
+    _asmcmd         =db _newline, "._accept_table.size = (($ - ._accept_table) shr 1H)"
+    _asmcmd         =db _newline, _newline, "._skip_table:"
     _bitset_foreach _holder, _item
-      arrange       _skip, _regex.=table?._item?.=skippable?     
-      varrfsh       _skip
+      evaluate      _skip, _regex.=table?._item?.=skippable?     
       cmpz          _skip
       _jyesnext
-      _asmcmd       =db 00AH, "db .", _regex.=table?._item?.=tokenname?
+      _asmcmd       =db _newline, "db .", _regex.=table?._item?.=tokenname?
     _end            _foreach
-    _asmcmd         =db 00AH, "db 0"
-    _asmcmd         =db 00AH, "._skip_table.size = ($ - ._skip_table)"
+    _asmcmd         =db _newline, "db 0"
+    _asmcmd         =db _newline, "._skip_table.size = ($ - ._skip_table)"
   end calminstruction
 end namespace
 

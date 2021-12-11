@@ -702,7 +702,7 @@ namespace _automata?
 
   calminstruction _subset_construction? _result?*, _machine?*
     local       _return, _temporary, _match, _holder, _lookup, _empty, _init, _unvisit, _stack, _storage,\
-                  _symbol, _current, _found, _index, _total, _accept, _value, _closure, __a
+                  _symbol, _current, _found, _index, _total, _accept, _value, _closure
     _unique     _match, subset
     _unique     _empty, subset
     _unique     _init, subset
@@ -755,8 +755,8 @@ namespace _automata?
       _call     _bitset?._empty?, * _return, ~ _match
       cmpz      _return
       jno       _subset_construction_increment
-      _call     _bitset?._element?, * _return, ~ _match, ~ _constant?._zero?
-      push      _accept, _found,_return
+      _call     _bitset?._element?, * _return, ~ _match, ~ _constant?._zero? ; match to the first declared token
+      push      sym _accept, _found,_return
      _subset_construction_increment:
       _asmcmd   =db _found
     _end        _repeat
@@ -767,12 +767,12 @@ namespace _automata?
     _unroll     _accept
       _asmcmd   =dd _accept
     _end        _unroll
-    ;_call       _bitset?._destroy?, ~ _match
-    _unroll     _stack
-    ;  _call     _bitset?._destroy?, ~ _stack
-    _end        _unroll
     _asmcmd     .=_accept_table.=sizeof == (=$ - .=_accept_table)
     _asmcmd     =end =virtual
+    _call       _bitset?._destroy?, ~ _match
+    _unroll     _stack
+      _call     _bitset?._destroy?, ~ _stack
+    _end        _unroll
   end calminstruction
 
   calminstruction _display_character_transition? _byte?*
@@ -789,32 +789,30 @@ namespace _automata?
   calminstruction _display? _result?*
     local               _start, _holder, _transition, _epsilon, _target, _charset, _item, _index,\
                             _limit, _out, _character, _first, _last_1, _last_2
-    execute             { display "START<" }
+    execute             ~ { display "START<" }
     arrange             _start, _result.=start?
     reprnum             _start
     stringify           _start
-    execute             { display _start, ">", 00AH }
-    execute             { display "STATES:" }
+    execute             ~ { display _start, ">", 00AH || display "STATES:" }
     arrange             _holder, _result.=states?
     _call               _bitset?._display?, ~ _holder
-    execute             { display "FINAL:" }
+    execute             ~ { display "FINAL:" }
     arrange             _holder, _result.=accept?
     _call               _bitset?._display?, ~ _holder
-    execute             { display "TRANSITION:{" }
+    execute             ~ { display "TRANSITION:{" }
     arrange             _transition, _result.=transition?
     _bitset_foreach     _transition, _item, _first, _last_1
       arrange           _start, _item
       stringify         _start
       arrange           _epsilon, _result.=table?._item?.=epsilon?
-      _bitset_foreach   _epsilon, _target,,
+      _bitset_foreach   _epsilon, _target
         arrange         _out, _target
         reprnum         _out
         stringify       _out
-        execute         { display "delta(", _start, ",EPSILON,", _out, ")" }
+        execute         ~ { display "delta(", _start, ",EPSILON,", _out, ")" }
       _end              _foreach
       setz              _index
-      arrange           _limit, _result.=table?._item?.=trcnt?
-      varrfsh           _limit
+      evaluate          _limit, _result.=table?._item?.=trcnt?
      _display_loop:
       check             (_index < _limit)
       _jnonext
@@ -822,14 +820,14 @@ namespace _automata?
       reprnum           _out
       stringify         _out
       arrange           _charset, _result.=table?._item?.=charset?._index?
-        _bitset_foreach _charset, _character,, _last_2
-          execute       { display "delta(", _start, "," }
+      _bitset_foreach   _charset, _character,, _last_2
+          execute       ~ { display "delta(", _start, "," }
           _call         _display_character_transition, _character
-          execute       { display ",", _out, ")" }
+          execute       ~ { display ",", _out, ")" }
           cmpz          _last_2
           _jnoexit
-          execute       { display "," }
-        _end            _foreach
+          execute       ~ { display "," }
+      _end              _foreach
       ;check             ((_index = 0H) & (_first <> 0H))
       inc               _index
       ;jyes              _display_loop
@@ -837,7 +835,7 @@ namespace _automata?
       jump              _display_loop
     _end                _foreach
    _display_finish:
-    execute             { display "}", 00AH }
+    execute             ~ { display "}", 00AH }
   end calminstruction
 end namespace
 

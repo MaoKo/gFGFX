@@ -638,7 +638,12 @@ calminstruction calminstruction?._repeat? _howmany?*, _counters?&
 end calminstruction
 
 calminstruction calminstruction?.execute? _instruction?&
-  local     _label_loop, _label_end, _holder, _stream
+  local     _label_loop, _label_end, _holder, _stream, _raw
+  setz      _raw
+  match     ~ _instruction, _instruction
+  jno       _execute_balance
+  not       _raw
+ _execute_balance:
   _balance  _instruction, {}
   jno       _execute_finish
   _call     calminstruction?._unique?, _holder, execute
@@ -646,6 +651,8 @@ calminstruction calminstruction?.execute? _instruction?&
   _locals   =_execute_stream, =_execute_head, =_execute_expand, =_execute_tail
   _asmcmd   =take =_execute_stream, _holder
   _asmcmd   =arrange _holder, =_execute_stream
+  cmpz      _raw
+  jno       _execute_iterate
   _call     calminstruction?._unique?, _label_loop, label
   _asmcmd   _label_loop:
   arrange   _stream,    =_execute_head?=== <[=_execute_expand]>=== =_execute_tail?,\
@@ -656,7 +663,7 @@ calminstruction calminstruction?.execute? _instruction?&
                         =_execute_head=_execute_expand =_execute_tail,\
                         =_execute_head?<[=_execute_expand]>=_execute_tail?,\
                         =_execute_head=_execute_expand=_execute_tail
-  _iterate  <_pattern,_substitute>, _stream
+  _iterate  <_pattern*,_substitute*>, _stream
     _call   calminstruction?._unique?, _label_end, * label
     _asmcmd =match _pattern, =_execute_stream
     _asmcmd =jno _label_end
@@ -665,6 +672,7 @@ calminstruction calminstruction?.execute? _instruction?&
     _asmcmd =jump _label_loop
     _asmcmd _label_end:
   _end      _iterate
+ _execute_iterate:
   _asmcmd   =_iterate =_execute_atom, =_execute_stream, ||
   _asmcmd   =assemble =_execute_atom
   _asmcmd   =_end =_iterate
@@ -917,7 +925,7 @@ calminstruction calminstruction?.restore? _list?*&
     match     =~ _item, _item
     jyes      _restore_immediate
     _asmcmd   =arrange _holder, _item
-    ;_asmcmd   =execute { =restore <[_holder]> }
+    _asmcmd   =execute { =restore <[_holder]> }
     _continue
    _restore_immediate:
     _asmcmd   =execute { =restore _item }

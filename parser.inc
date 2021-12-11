@@ -1,18 +1,23 @@
 
-;struc _nonterminal? _productions?, _nullable?*, _discard?*, _hash?*
-;   .productions?:  db _productions
-;   .nullable?:     db _nullable
-;   .discard?:      db _discard
-;   .hash?:         db _hash
+;struc _nonterminal? _productions?, _nullable?*, _discard?*, _optional?*, _list?*, _cache?*, _hash?*
+;   define .exists?
+;   .replacement?
+;   .productions? = _productions
+;   .nullable? = _nullable
+;   .discard? = _discard
+;   .optional? = _optional
+;   .list? = _list
+;   .cache? = _cache
+;   .hash? = _hash
 ;end struc
 
 ;struc _production? _hash?*, _count?*, _cnflnter?*, _cnfrnter?*, _cnfterm?*, _first?*
-;   .hash?:     db _hash
-;   .count?:    db _count
-;   .cnflnter   db _cnflnter
-;   .cnfrnter   db _cnfrnter
-;   .cnfterm?   db _cnfterm
-;   .first?     _bitset _first
+;   .hash? = _hash
+;   .count? = _count
+;   .cnflnter? = _cnflnter
+;   .cnfrnter? = _cnfrnter
+;   .cnfterm? = _cnfterm
+;   .first? _bitset _first
 ;end struc
 
 _parser? := 0H
@@ -21,13 +26,51 @@ namespace _parser?
     include "parser.lex.inc"
   end virtual
 
+  calminstruction _nonterminal_declare? _result?*, _symbol?*
+    restore     _result.=exist?
+    assign      _result.=exist?, _constant?._empty?
+    assign      _result.=replacement?, _constant?._empty?
+    assign      _result.=productions?, _constant?._zero?
+    assign      _result.=nullable?, _constant?._zero?
+    assign      _result.=discard?, _constant?._zero?
+    assign      _result.=optional?, _constant?._zero?
+    assign      _result.=list?, _constant?._zero?
+    ;assign     _result.=reach?, _constant?._zero?
+    assign      _result.=cache?, _constant?._zero?
+    stringify   _symbol
+    reprnum     _symbol
+    assign      _result.=hash?, _symbol
+  end calminstruction
+
+  calminstruction _production_declare? _result?*, _hash?*, _count?*
+    local     _holder
+    assign    _result.=hash?, _hash
+    assign    _result.=count?, _count
+    assign    _result.=cnflnter?, _constant?._empty?
+    assign    _result.=cnfrnter?, _constant?._empty?
+    assign    _result.=cnfterm?, _constant?._empty?
+    arrange   _holder, _result.=first?
+    call      _bitset?._declare?, _holder
+  end calminstruction
+
+  calminstruction _production_duplicate? _result?*, _target?*
+    ;movsym        _result.=nonterminal?._target._index_1?, _result.=nonterminal?._target._index_2?
+    ;movsym  _result.=nonterminal?._target._index_1?.=hash?, _result.=nonterminal?._target._index_2?.=hash?
+    movvar  _result.=count?, _target.=count?
+    ;move          _result.=nonterminal?._target._index_1?.=cnflnter?, _result.=nonterminal?._target._index_2?.=cnflnter?
+    ;move          _result.=nonterminal?._target._index_1?.=cnfrnter?, _result.=nonterminal?._target._index_2?.=cnfrnter?
+    ;move          _result.=nonterminal?._target._index_1?.=cnfterm?, _result.=nonterminal?._target._index_2?.=cnfterm?
+  end calminstruction
+
+  calminstruction _production_destroy? _result?*
+    restore   _result.=hash?, _result.=count?, _result.=cnflnter?, _result.=cnfrnter?, _result.=cnfterm?
+  end calminstruction
+
   calminstruction _declare? _result?*
-    _init       const _empty,
-    _init       var const _zero, 0H
-    assign      _result.=nonterminal?, _zero
-    assign      _result.=record?, _empty
-    assign      _result.=start?, _empty
-    assign      _result.=index?, _zero
+    assign      _result.=nonterminal?, _constant?._zero?
+    assign      _result.=record?, _constant?._empty?
+    assign      _result.=start?, _constant?._empty?
+    assign      _result.=index?, _constant?._zero?
   end calminstruction
 
   calminstruction _dupnter? _result?*, _target?*
@@ -66,9 +109,7 @@ namespace _parser?
 
   calminstruction _nonterminal? _result?*, _start?*, _symbol?*&
     local           _holder, _index
-    _init           const _empty,
-    _init           var const _zero, 0H
-    match           =< _symbol =>, _symbol
+    match           =<_symbol=>, _symbol
     jno             _nonterminal_finish
     _transformable  _result.=nonterminal?._symbol.=exist?
     jyes            _nonterminal_finish
@@ -87,122 +128,102 @@ namespace _parser?
     assign          _result.=start?, _symbol
    _nonterminal_register:
     evaluate        _index, _result.=index?
-    assign          _result.=nonterminal?._symbol, _index
+    arrange         _holder, _result.=nonterminal?._symbol
+    assign          _holder, _index
     inc             _index
     assign          _result.=index?, _index
-    restore         _result.=nonterminal?._symbol.=exist?
-    assign          _result.=nonterminal?._symbol.=exist?, _empty
-    assign          _result.=nonterminal?._symbol.=replacement?, _empty
-    assign          _result.=nonterminal?._symbol.=productions?, _zero
-    assign          _result.=nonterminal?._symbol.=nullable?, _zero
-    assign          _result.=nonterminal?._symbol.=discard?, _zero
-    assign          _result.=nonterminal?._symbol.=optional?, _zero
-    assign          _result.=nonterminal?._symbol.=list?, _zero
-    ;assign         _result.=nonterminal?._symbol.=reach?, _zero
-    assign          _result.=nonterminal?._symbol.=cache?, _zero
-    arrange         _holder, _symbol
-    stringify       _holder
-    reprnum         _holder
-    assign          _result.=nonterminal?._symbol.=hash?, _holder
+    _call           _nonterminal_declare, ~ _holder, ~ _symbol
    _nonterminal_finish:
   end calminstruction
 
   calminstruction _productions? _result?*, _productions?*&
-    local           _lhs, _defined, _reason, _rhs, _holder, _symbol, _increment, _hash, _compare, _cterm, _cnter, _left, _right, _count, _bucket
-    _init           const __symbol, _symbol
-    _init           const _badsyms, "parser: unknown symbol `", __symbol, "`"
-    _init           const _badnter, "parser: nonterminal unknown `", __symbol, "`"
-    _init           const _empty,
-    match           _lhs -> _productions?, _productions
-    jno             _productions_finish
-    match           =< _lhs =>, _lhs
-    jno             _productions_finish
-    expand          _defined, _result.=nonterminal?._lhs.=exist?
-    jno             _productions_finish
-    arrange         _holder, _result.=nonterminal?._lhs.=productions?
-    compute         _increment, _holder
-    _iterate        _rhs, _productions, |
-      setz          _cterm
-      setz          _cnter
-      arrange       _hash,
-      setz          _count
-      match         ,_rhs
-      jyes          _prodcutions_assign
-      _iterate      _symbol, _rhs
-        inc         _count
-        match       =< _symbol =>, _symbol
-        jyes        _productions_nonterminal
-        match       =( _symbol =), _symbol
-        jyes        _productions_terminal
-        arrange     _reason, _badsyms
+    local               _lhs, _reason, _rhs, _holder, _symbol, _increment, _hash, _compare, _cterm, _cnter,\
+                            _left, _right, _count, _declare
+    _cstwrp             _symbol
+    _init               const _badsyms, "parser: unknown symbol `", __symbol, "`"
+    _init               const _badnter, "parser: nonterminal unknown `", __symbol, "`"
+    match               _lhs -> _productions?, _productions
+    jno                 _productions_finish
+    match               =<_lhs=>, _lhs
+    jno                 _productions_finish
+    _transformable      _result.=nonterminal?._lhs.=exist?
+    jno                 _productions_finish
+    arrange             _holder, _result.=nonterminal?._lhs.=productions?
+    compute             _increment, _holder
+    _iterate            _rhs, _productions, |
+      setz              _cterm
+      setz              _cnter
+      arrange           _hash,
+      setz              _count
+      match             ,_rhs
+      jyes              _prodcutions_assign
+      _iterate          _symbol, _rhs
+        inc             _count
+        match           =<_symbol=>, _symbol
+        jyes            _productions_nonterminal
+        match           =(_symbol=), _symbol
+        jyes            _productions_terminal
+        arrange         _reason, _badsyms
        _productions_error:
-        stringify   _symbol
-        _asmcmd     =err _reason
-        jump        _productions_finish
+        stringify       _symbol
+        _asmcmd         =err _reason
+        jump            _productions_finish
        _productions_nonterminal:
-        inc         _cnter
-        arrange     _reason, _badnter
-        expand      _defined, _result.=nonterminal?._symbol.=exist?
-        jno         _productions_error
-        arrange     _hash, _hash,<_symbol>
+        inc             _cnter
+        arrange         _reason, _badnter
+        _transformable  _result.=nonterminal?._symbol.=exist?
+        jno             _productions_error
+        arrange         _hash, _hash,<_symbol>
         _continue
        _productions_terminal:
-        inc         _cterm
-        varrfsh     _symbol
-        arrange     _hash, _hash,_symbol
-      _end          _iterate
+        inc             _cterm
+        varrfsh         _symbol
+        arrange         _hash, _hash,_symbol
+      _end              _iterate
      _prodcutions_assign:
-      _delcma       _hash
-      stringify     _hash
-      reprnum       _hash
-      _repeat       _increment, _index:0H
-        evaluate    _compare, _result.=nonterminal?._lhs._index?.=hash?
-        cmp         _hash, _compare
-        jyes        _productions_continue
-      _end          _repeat
-      assign        _result.=nonterminal?._lhs._increment?, _rhs
-      assign        _result.=nonterminal?._lhs._increment?.=hash?, _hash
-      assign        _result.=nonterminal?._lhs._increment?.=count?, _count
-      assign        _result.=nonterminal?._lhs._increment?.=cnflnter?, _empty
-      assign        _result.=nonterminal?._lhs._increment?.=cnfrnter?, _empty
-      assign        _result.=nonterminal?._lhs._increment?.=cnfterm?, _empty
-      arrange       _bucket, _result.=nonterminal?._lhs._increment?.=first?
-      call          _bitset?._declare?, _bucket
-      check         ((_count = 2H) & (_cnter = 2H))
-      jno           _productions_alone
-      match         =< _left => =, =< _right =>, _rhs
-      evaluate      _left, _result.=nonterminal?._left
-      evaluate      _right, _result.=nonterminal?._right
-      assign        _result.=nonterminal?._lhs._increment?.=cnflnter?, _left
-      assign        _result.=nonterminal?._lhs._increment?.=cnfrnter?, _right
-      jump          _productions_update
+      _delcma           _hash
+      stringify         _hash
+      reprnum           _hash
+      _repeat           _increment, _index:_constant?._false?
+        evaluate        _compare, _result.=nonterminal?._lhs._index?.=hash?
+        cmp             _hash, _compare
+        jyes            _productions_continue
+      _end              _repeat
+      arrange           _declare, _result.=nonterminal?._lhs._increment?
+      publish           _declare, _rhs
+      _call             _production_declare, ~ _declare, ~ _hash, ~ _count
+      check             ((_count = 2H) & (_cnter = 2H))
+      jno               _productions_alone
+      match             =<_left=>=,=<_right=>, _rhs
+      evaluate          _left, _result.=nonterminal?._left
+      evaluate          _right, _result.=nonterminal?._right
+      assign            _result.=nonterminal?._lhs._increment?.=cnflnter?, _left
+      assign            _result.=nonterminal?._lhs._increment?.=cnfrnter?, _right
+      jump              _productions_update
      _productions_alone:
-      check         ((_count = 1H) & (_cterm = 1H))
-      jno           _productions_update
-      match         =( _rhs =), _rhs
-      varrfsh       _rhs
-      assign        _result.=nonterminal?._lhs._increment?.=cnfterm?, _rhs
+      check             ((_count = 1H) & (_cterm = 1H))
+      jno               _productions_update
+      match             =(_rhs=), _rhs
+      varrfsh           _rhs
+      assign            _result.=nonterminal?._lhs._increment?.=cnfterm?, _rhs
      _productions_update:
-      inc           _increment
+      inc               _increment
      _productions_continue:
-    _end            _iterate
-    publish         _holder, _increment
+    _end                _iterate
+    publish             _holder, _increment
    _productions_finish:
   end calminstruction
 
   calminstruction _mark_first? _result?*
-    local           _holder, _symbol, _count, _bitset, _head, _trash, _change, _target,\
+    local           _holder, _symbol, _count, _bitset, _head, _remain, _change, _target,\
                         _union, _insert, _temporary, _return, _null, _glassy
-    _init           const __temporary, _temporary
-    _init           const __return, _return
-    _init           const _first, first
-    call            _unique, __temporary, _first
+    _unique         _temporary, _first
     expand          _holder, _result.=record?
     _iterate        _symbol*, _holder
       evaluate      _count, _result.=nonterminal?._symbol.=productions?
-      _repeat       _count, _index:0H
+      _repeat       _count, _index:_constant?._zero?
         arrange     _bitset, _result.=nonterminal?._symbol._index?.=first?
-        call        _bitset?._declare?, _bitset
+        _call       _bitset?._declare?, _bitset
       _end          _repeat
     _end            _iterate
     call            _mark_nullable?, _result
@@ -210,25 +231,25 @@ namespace _parser?
     setz            _change
     _iterate        _symbol*, _holder
       evaluate      _count, _result.=nonterminal?._symbol.=productions?
-      _repeat       _count, _index:0H
+      _repeat       _count, _index:_constant?._zero?
         setz        _glassy
         arrange     _bitset, _result.=nonterminal?._symbol._index?.=first?
-        call        _bitset?._declare?, _temporary
+        _call       _bitset?._declare?, ~ _temporary
         expand      _head, _result.=nonterminal?._symbol._index?
        _mark_first_scan:
-        match       =( _head =) _trash?, _head
+        match       =(_head=) _remain?, _head
         jyes        _mark_first_terminal    
-        match       =< _head => _trash?, _head
+        match       =<_head=> _remain?, _head
         _jnonext
         inc         _glassy
         evaluate    _target, _result.=nonterminal?._head.=productions?
-        _repeat     _target, _insert:0H
+        _repeat     _target, _insert:_constant?._zero?
           arrange   _union, _result.=nonterminal?._head._insert?.=first?
-          call      _bitset?._union?, _temporary, _union
+          _call     _bitset?._union?, ~ _temporary, ~ _union
         _end        _repeat
         evaluate    _null, _result.=nonterminal?._head.=nullable?
-        arrange     _head, _trash
-        _front      _head, =,
+        arrange     _head, _remain
+        _delcma     _head
         cmpz        _null
         jno         _mark_first_scan 
        _mark_first_subset:
@@ -236,33 +257,34 @@ namespace _parser?
        _mark_first_terminal:
         varrfsh     _head
         arrange     _head, {_head}
-        call        _bitset?._member?, __return, _bitset, _head
-        call        _bitset?._insert?, _temporary, _head
+        _call       _bitset?._member?, _return, ~ _bitset, ~ _head
+        _call       _bitset?._insert?, ~ _temporary, ~ _head
         cmpz        _glassy
         jno         _mark_first_subset
         cmpz        _return
         _jnonext
-        call        _bitset?._insert?, _bitset, _head
+        _call       _bitset?._insert?, ~ _bitset, ~ _head
        _mark_first_update:
         inc         _change
       _end          _repeat
     _end            _iterate
     cmpz            _change
     jno             _mark_first_loop
+    _call           _bitset?._destroy?, ~ _temporary
   end calminstruction
 
   calminstruction _first? _result?*, _parser?*, _target?*&
     local           _count, _bitset, _defined
-    match           =< _target =>, _target
+    match           =<_target=>, _target
     jno             _first_finish
     _transformable  _result.=nonterminal?._target.=exist?
     jno             _first_finish
-    call            _mark_first, _parser
-    call            _bitset?._declare?, _result
+    _call           _mark_first, ~ _parser
+    _call           _bitset?._declare?, ~ _result
     evaluate        _count, _parser.=nonterminal?._target.=productions?
-    _repeat         _count, _index:0H
+    _repeat         _count, _index:_constant?._zero?
       arrange       _bitset, _parser.=nonterminal?._target._index?.=first?
-      call          _bitset?._union?, _result, _bitset
+      _call         _bitset?._union?, ~ _result, ~ _bitset
     _end            _repeat
    _first_finish:
   end calminstruction
@@ -313,13 +335,13 @@ namespace _parser?
     setz            _change
     _iterate        _symbol*, _holder
       evaluate      _count, _self.=nonterminal?._symbol.=productions?
-      _repeat       _count, _index:0H
+      _repeat       _count, _index:_constant?._zero?
         expand      _production, _self.=nonterminal?._symbol._index?
         setz        _seen
         _iterate    _rhs*, _production
           cmpz      _seen
           jno       _follow_include
-          match     =< _select =>, _rhs
+          match     =<_select=>, _rhs
           _jnonext
           evaluate  _select, _self.=nonterminal?._select
           cmp       _select, _id
@@ -328,7 +350,7 @@ namespace _parser?
           _continue
          _follow_include:
           setz      _seen
-          match     =( _select =), _rhs
+          match     =(_select=), _rhs
           jno       _follow_first
           arrange   _select, {_select}
           _incmbr   _return, __return, _destination, _select, _jnonext, inc _change
@@ -505,26 +527,24 @@ namespace _parser?
 
   calminstruction _mark_nullable? _result?*
     local           _holder, _symbol, _change, _count, _index, _check, _production, _item
-    _init           var const _true, (not 0H)
-    _init           var const _false, 0H
     expand          _holder, _result.=record?
     _iterate        _symbol*, _holder
-      assign        _result.=nonterminal?._symbol.=nullable?, _false
-      assign        _result.=nonterminal?._symbol.=discard?, _false
+      assign        _result.=nonterminal?._symbol.=nullable?, _constant?._false?
+      assign        _result.=nonterminal?._symbol.=discard?, _constant?._false?
     _end            _iterate
    _mark_nullable_loop:
-    compute         _change, _false
+    compute         _change, _constant?._false?
     _iterate        _symbol*, _holder
       evaluate      _check, _result.=nonterminal?._symbol.=nullable?
       cmpz          _check
       _jnonext
       evaluate      _count, _result.=nonterminal?._symbol.=productions?
-      _repeat       _count, _index:0H
-        expand      _production, _result.=nonterminal?._symbol._index?
+      _repeat       _count, _index:_constant?._zero?
+        expand      _production, _result.=nonterminal?._symbol._index?.=empty?
         match       ,_production
         jyes        _mark_nullable_discard
         _iterate    _item*, _production
-          match     =< _item =>, _item
+          match     =<_item=>, _item
           jno       _mark_nullable_continue
           evaluate  _item, _result.=nonterminal?._item.=nullable?
           cmpz      _item
@@ -534,10 +554,10 @@ namespace _parser?
        _mark_nullable_continue:
         _continue
        _mark_nullable_discard:
-        assign      _result.=nonterminal?._symbol.=discard?, _true
+        assign      _result.=nonterminal?._symbol.=discard?, _constant?._true?
        _mark_nullable_found:
-        assign      _result.=nonterminal?._symbol.=nullable?, _true
-        compute     _change, _true
+        assign      _result.=nonterminal?._symbol.=nullable?, _constant?._true?
+        compute     _change, _constant?._true?
         _break
       _end          _repeat
     _end            _iterate
@@ -547,57 +567,52 @@ namespace _parser?
 
   calminstruction _appear_grammar? _result?*, _retsym?*, _retidx?*, _parser?*, _target?*&
     local           _holder, _symbol, _count, _rhs, _current
-    _init           var const _true, (not 0H)
-    _init           var const _false, 0H
-    match           =< _target =>, _target
+    match           =<_target=>, _target
     jno             _appear_grammar_finish
     stringify       _target
     expand          _holder, _parser.=record?
     _iterate        _symbol*, _holder
       evaluate      _count, _parser.=nonterminal?._symbol.=productions?
-      _repeat       _count, _index:0H
+      _repeat       _count, _index:_constant?._zero?
         expand      _rhs, _parser.=nonterminal?._symbol._index?
         _iterate    _current*, _rhs
-          match     =< _current =>, _current
+          match     =<_current=>, _current
           _jnonext
           evaluate  _current, _parser.=nonterminal?._current.=hash?
           cmp       _current, _target
           _jnonext
           publish   _retsym, _symbol
           publish   _retidx, _index
-          publish   _result, _true
+          publish   _result, _constant?._true?
           jump      _appear_grammar_finish
         _end        _iterate
       _end          _repeat
     _end            _iterate
-    publish         _result, _false
+    publish         _result, _constant?._false?
    _appear_grammar_finish:
   end calminstruction
 
   calminstruction _rules_out? _result?*, _productions?*, _target?*&
-    local           _much, _hash, _production, _max, _bitset, _return, _lookup
-    _init           const __bitset, _bitset
-    _init           const __return, _return
-    _init           const _rules, rules
-    match           =< _target =>, _target
+    local           _much, _hash, _production, _max, _bitset, _return, _lookup, _destination
+    match           =<_target=>, _target
     jno             _rules_out_finish
-    call            _unique, __bitset, _rules
-    call            _bitset?._declare?, _bitset
+    _unique         _bitset, rules
+    _call           _bitset?._declare?, ~ _bitset
    _rules_out_loop:
     compute         _max, (not 0H)
     _iterate        _production*, _productions
       check         (_max < _production)
       _jnonext
       arrange       _lookup, {_production}
-      call          _bitset?._member?, __return, _bitset, _lookup
+      _call         _bitset?._member?, _return, ~ _bitset, ~ _lookup
       cmpz          _return
       _jnonext 
       compute       _max, _production
     _end            _iterate
-    check           (_max < 0H)
+    check           (_max < _constant?._zero?)
     jyes            _rules_out_clean
     arrange         _lookup, {_max}
-    call            _bitset?._insert?, _bitset, _lookup
+    _call           _bitset?._insert?, ~ _bitset, ~ _lookup
     evaluate        _much, _result.=nonterminal?._target.=productions?
     check           (_max >= _much)
     jyes            _rules_out_loop
@@ -609,17 +624,17 @@ namespace _parser?
       move          _result.=nonterminal?._target._index_1?.=cnflnter?, _result.=nonterminal?._target._index_2?.=cnflnter?
       move          _result.=nonterminal?._target._index_1?.=cnfrnter?, _result.=nonterminal?._target._index_2?.=cnfrnter?
       move          _result.=nonterminal?._target._index_1?.=cnfterm?, _result.=nonterminal?._target._index_2?.=cnfterm?
+      ;_call         _production_duplicate?
     _end            _repeat
     evaluate        _much, _result.=nonterminal?._target.=productions?
     dec             _much
-    restore         _result.=nonterminal?._target._much?
-    restore         _result.=nonterminal?._target._much?.=hash?, _result.=nonterminal?._target._much?.=count?,\
-                        _result.=nonterminal?._target._much?.=cnflnter?, _result.=nonterminal?._target._much?.=cnfrnter?,\
-                        _result.=nonterminal?._target._much?.=cnfterm?
+    arrange         _destination, _result.=nonterminal?._target._much?
+    restore         _destination
+    _call           _production_destroy?, ~ _destination
     assign          _result.=nonterminal?._target.=productions?, _much
     jump            _rules_out_loop
    _rules_out_clean:
-    call            _bitset?._destroy?, _bitset
+    _call           _bitset?._destroy?, ~ _bitset
    _rules_out_finish:
   end calminstruction
 
@@ -681,28 +696,21 @@ namespace _parser?
   calminstruction _remove_epsilon? _result?*
     local           _change, _holder, _symbol, _count, _return, _candidate,\
                         _target, _production, _lookup, _once, _newform_1, _newform_2, _epsilon
-    _init           const __return, _return
-    _init           const __candidate, _candidate
-    _init           const __target, _target
-    _init           const __production, _production
-    _init           const _remove, remove
-    _init           const _empty,
-    _init           var const _zero, 0H
    _remove_epsilon_loop:
     expand          _holder, _result.=record?
     _iterate        _symbol*, _holder
-      assign        _result.=nonterminal?._symbol.=replacement?, _empty
+      assign        _result.=nonterminal?._symbol.=replacement?, _constant?._empty?
     _end            _iterate
    _remove_epsilon_evict:
     expand          _holder, _result.=record?
-    call            _mark_nullable, _result
+    _call           _mark_nullable, ~ _result
     _iterate        _symbol*, _holder
       arrange       _candidate, _symbol
       evaluate      _return, _result.=nonterminal?._symbol.=discard?
       cmpz          _return
       _jyesnext
       arrange       _lookup, <_symbol>
-      call          _appear_grammar, __return, __target, __production, _result, _lookup
+      _call         _appear_grammar, _return, _target, _production, ~ _result, ~ _lookup
       cmpz          _return
       _jnoexit
     _end            _iterate
@@ -711,20 +719,20 @@ namespace _parser?
     expand          _lookup, _result.=nonterminal?._candidate.=replacement?
     match           ,_lookup
     jno             _remove_epsilon_prepare
-    call            _unique, __return, _remove
+    _call           _unique, * _return, remove
     arrange         _lookup, _return
     arrange         _return, <_return>
-    call            _nonterminal, _result, _zero, _return
+    _call           _nonterminal, ~ _result, ~ _constant?._zero?, ~ _return
     assign          _result.=nonterminal?._candidate.=replacement?, _lookup
    _remove_epsilon_prepare:
     stringify       _candidate
-    arrange         _newform_1,
-    arrange         _newform_2,
+    empty           _newform_1
+    empty           _newform_2
     setz            _once
     expand          _holder, _result.=nonterminal?._target._production?
     _iterate        _symbol, _holder
       arrange       _current, _symbol
-      match         =< _current =>, _current
+      match         =<_current=>, _current
       jno           _remove_epsilon_append
       evaluate      _return, _result.=nonterminal?._current.=hash?
       cmp           _return, _candidate
@@ -738,12 +746,12 @@ namespace _parser?
       arrange       _newform_1, _newform_1, _symbol
       arrange       _newform_2, _newform_2, _symbol
     _end            _iterate
-    match           =,_newform_1, _newform_1
-    match           =,_newform_2, _newform_2
+    _delcma         _newform_1
+    _delcma         _newform_2
     arrange         _target, <_target>
-    call            _rules_out, _result, _production, _target
+    _call           _rules_out, ~ _result, ~ _production, ~ _target
     arrange         _production, _target -> _newform_1 | _newform_2
-    call            _productions, _result, _production
+    _call           _productions, ~ _result, ~ _production
     jump            _remove_epsilon_evict
    _remove_epsilon_handle:
     setz            _change
@@ -757,7 +765,7 @@ namespace _parser?
       arrange       _target, _lookup ->
       compute       _epsilon, (not 0H)
       evaluate      _count, _result.=nonterminal?._symbol.=productions?
-      _repeat       _count, _index:0H
+      _repeat       _count, _index:_constant?._zero?
         expand      _production, _result.=nonterminal?._symbol._index?
         match       ,_production
         jno         _remove_epsilon_reset
@@ -770,14 +778,14 @@ namespace _parser?
       cmpz          _epsilon
       jyes          _remove_epsilon_alternative
      _remove_epsilon_useless:
-      call          _appear_grammar, __return, __target, __production, _result, _lookup
+      _call         _appear_grammar, * _return, * _target, * _production, ~ _result, ~ _lookup
       arrange       _target, <_target>
       cmpz          _return
       _jyesnext
-      call          _rules_out, _result, _production, _target
+      _call         _rules_out, ~ _result, ~ _production, ~ _target
       jump          _remove_epsilon_useless
      _remove_epsilon_alternative:
-      call          _productions, _result, _target
+      _call         _productions, ~ _result, ~ _target
     _end            _iterate
     cmpz            _change
     jno             _remove_epsilon_loop
